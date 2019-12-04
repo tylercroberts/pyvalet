@@ -39,4 +39,24 @@ class ValetInterpreter(BaseInterpreter):
         response = requests.get(self.url)
         return response
 
+    def list_series(self, response_format='csv'):
+        response = self._get_lists('series', response_format=response_format)
+        if response_format == 'csv':
+            df = self._pandafy_response(response, skiprows=4)
+            self._reset_url()
+            return df
+        else:
+            raise NotImplementedError("JSON and XML not yet supported")
+
+    def list_groups(self, response_format='csv'):
+        response = self._get_lists('groups', response_format=response_format)
+        if response_format == 'csv':
+            df = self._pandafy_response(response, skiprows=4)
+            self._reset_url()
+            return df
+        else:
+            raise NotImplementedError("JSON and XML not yet supported")
+
+    def get_series_detail(self, series, response_format='csv'):
+        pass
 
