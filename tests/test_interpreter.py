@@ -50,8 +50,37 @@ def test_lists():
     assert groups_list_time2 < groups_list_time
 
 
+def test_details():
 
+    # TODO: Here we just test a sample of handcoded endpoints, may want to look at a broader selection.
 
+    vi = ValetInterpreter()
 
+    # Check that the json/xml formats return correct error
+    with pytest.raises(NotImplementedError):
+        vi.get_series_detail('FXUSDCAD', response_format='json')
+    with pytest.raises(NotImplementedError):
+        vi.get_group_detail("FX_RATES_DAILY", response_format='json')
+
+    # Time it so we can test that caching is working correctly.
+    # Series Lists
+    series_detail_start = time.time()
+    df = vi.get_series_detail("FXUSDCAD", response_format='csv')
+    series_detail_time = time.time() - series_detail_start
+    assert isinstance(df, pd.DataFrame)
+    series_detail_start2 = time.time()
+    df = vi.get_series_detail("FXUSDCAD", response_format='csv')
+    series_detail_time2 = time.time() - series_detail_start2
+    assert series_detail_time2 < series_detail_time
+
+    # Group Lists
+    group_detail_start = time.time()
+    df = vi.get_group_detail("FX_RATES_DAILY", response_format='csv')
+    group_detail_time = time.time() - group_detail_start
+    assert isinstance(df, pd.DataFrame)
+    group_detail_start2 = time.time()
+    df = vi.get_group_detail("FX_RATES_DAILY", response_format='csv')
+    group_detail_time2 = time.time() - group_detail_start2
+    assert group_detail_time2 < group_detail_time
 
 

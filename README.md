@@ -38,3 +38,11 @@ vi.series_list
 vi.groups_list
 ```
 
+
+To get more details about these series or groups, the `get_series_detail()` 
+or `get_group_detail()` methods are available
+```python
+vi.get_series_detail("FXUSDCAD", response_format='csv')
+
+vi.get_group_detail("FX_RATES_DAILY", response_format='csv')
+```

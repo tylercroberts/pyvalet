@@ -49,6 +49,11 @@ class ValetInterpreter(BaseInterpreter):
         response = requests.get(self.url)
         return response
 
+    def _get_details(self, detail_type, series, response_format='csv'):
+        self._prepare_requests(detail_type, series, response_format)
+        response = requests.get(self.url)
+        return response
+
     def list_series(self, response_format='csv'):
         if self.series_list is not None:
             return self.series_list
@@ -76,6 +81,45 @@ class ValetInterpreter(BaseInterpreter):
                 return df
 
     def get_series_detail(self, series, response_format='csv'):
-        pass
+        if response_format != 'csv':
+            raise NotImplementedError
+        else:
+            if self.series_list is not None:
+                # If we've already cached it anyways, make sure that the series exists before bothering to send request.
+                if series in self.series_list['name'].unique():
+                    response = self._get_details('series', series, response_format=response_format)
+                    df = self._pandafy_response(response, skiprows=4)
+                else:
+                    raise ValueError("The series passed does not lead to a Valet endpoint, "
+                                     "check your spelling and try again.")
+
+            else:
+                self.list_series(response_format='csv')
+                response = self._get_details('series', series, response_format=response_format)
+                df = self._pandafy_response(response, skiprows=4)
+
+            self._reset_url()
+            return df
+
+    def get_group_detail(self, group, response_format='csv'):
+        if response_format != 'csv':
+            raise NotImplementedError
+        else:
+            if self.groups_list is not None:
+                # If we've already cached it anyways, make sure that the series exists before bothering to send request.
+                if group in self.groups_list['name'].unique():
+                    response = self._get_details('groups', group, response_format=response_format)
+                    df = self._pandafy_response(response, skiprows=4)
+                else:
+                    raise ValueError("The series passed does not lead to a Valet endpoint, "
+                                     "check your spelling and try again.")
+
+            else:
+                self.list_groups(response_format='csv')
+                response = self._get_details('groups', group, response_format=response_format)
+                df = self._pandafy_response(response, skiprows=4)
+
+            self._reset_url()
+            return df
 
 
