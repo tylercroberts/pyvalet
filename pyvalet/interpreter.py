@@ -16,6 +16,14 @@ class BaseInterpreter(object):
     def _set_endpoint(self, endpoint: str):
         self.url = f"{self.url}/{endpoint}"
 
+    def _prepare_requests(self, *args):
+        for arg in args:
+            if isinstance(arg, str):
+                self._set_endpoint(arg)
+            else:
+                self._reset_url()
+                raise ValueError('Arguments to prepare_requests must be a string')
+
     @staticmethod
     def _pandafy_response(response: requests.Response, skiprows: int = 0) -> pd.DataFrame:
         sio = StringIO(response.text)
@@ -37,9 +45,7 @@ class ValetInterpreter(BaseInterpreter):
         self.groups_list = None
 
     def _get_lists(self, list_type, response_format='csv'):
-        self._set_endpoint('lists')
-        self._set_endpoint(list_type)
-        self._set_endpoint(response_format)
+        self._prepare_requests('lists', list_type, response_format)
         response = requests.get(self.url)
         return response
 
@@ -71,4 +77,5 @@ class ValetInterpreter(BaseInterpreter):
 
     def get_series_detail(self, series, response_format='csv'):
         pass
+
 
