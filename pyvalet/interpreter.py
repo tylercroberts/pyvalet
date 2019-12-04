@@ -26,11 +26,15 @@ class BaseInterpreter(object):
 class ValetInterpreter(BaseInterpreter):
 
     def __init__(self):
-        # super doesn't od much in our case.
+        # super doesn't do much in our case.
         super(ValetInterpreter, self).__init__()
 
         self.base_url = 'https://www.bankofcanada.ca/valet'
         self.url = self.base_url
+
+        # These provide a cached version of results
+        self.series_list = None
+        self.groups_list = None
 
     def _get_lists(self, list_type, response_format='csv'):
         self._set_endpoint('lists')
@@ -40,22 +44,30 @@ class ValetInterpreter(BaseInterpreter):
         return response
 
     def list_series(self, response_format='csv'):
-        response = self._get_lists('series', response_format=response_format)
-        if response_format == 'csv':
-            df = self._pandafy_response(response, skiprows=4)
-            self._reset_url()
-            return df
+        if self.series_list is not None:
+            return self.series_list
         else:
-            raise NotImplementedError("JSON and XML not yet supported")
+            if response_format != 'csv':
+                raise NotImplementedError("JSON and XML not yet supported")
+            else:
+                response = self._get_lists('series', response_format=response_format)
+                df = self._pandafy_response(response, skiprows=4)
+                self._reset_url()
+                self.series_list = df
+                return df
 
     def list_groups(self, response_format='csv'):
-        response = self._get_lists('groups', response_format=response_format)
-        if response_format == 'csv':
-            df = self._pandafy_response(response, skiprows=4)
-            self._reset_url()
-            return df
+        if self.groups_list is not None:
+            return self.groups_list
         else:
-            raise NotImplementedError("JSON and XML not yet supported")
+            if response_format != 'csv':
+                raise NotImplementedError("JSON and XML not yet supported")
+            else:
+                response = self._get_lists('groups', response_format=response_format)
+                df = self._pandafy_response(response, skiprows=4)
+                self._reset_url()
+                self.groups_list = df
+                return df
 
     def get_series_detail(self, series, response_format='csv'):
         pass
