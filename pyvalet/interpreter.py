@@ -23,3 +23,20 @@ class BaseInterpreter(object):
         return df
 
 
+class ValetInterpreter(BaseInterpreter):
+
+    def __init__(self):
+        # super doesn't od much in our case.
+        super(ValetInterpreter, self).__init__()
+
+        self.base_url = 'https://www.bankofcanada.ca/valet'
+        self.url = self.base_url
+
+    def _get_lists(self, list_type, response_format='csv'):
+        self._set_endpoint('lists')
+        self._set_endpoint(list_type)
+        self._set_endpoint(response_format)
+        response = requests.get(self.url)
+        return response
+
+
