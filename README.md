@@ -1,7 +1,9 @@
 # pyvalet
 ![](https://travis-ci.com/tylercroberts/pyvalet.svg?branch=master) ![](https://img.shields.io/badge/Python-3.6-blue)
 
-Simple, pandas integrated API wrapper for the Bank of Canada Valet API
+Simple, pandas integrated API wrapper for the Bank of Canada Valet API.
+
+Their documentation page can be found [here](https://www.bankofcanada.ca/valet/docs)
 
 ### Installation:
 To install this package

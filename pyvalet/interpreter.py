@@ -110,6 +110,9 @@ class ValetInterpreter(BaseInterpreter):
                 if group in self.groups_list['name'].unique():
                     response = self._get_details('groups', group, response_format=response_format)
                     df = self._pandafy_response(response, skiprows=4)
+
+                    df_group = df.iloc[0]
+                    df_series = df.iloc[3:]
                 else:
                     raise ValueError("The series passed does not lead to a Valet endpoint, "
                                      "check your spelling and try again.")
@@ -118,8 +121,10 @@ class ValetInterpreter(BaseInterpreter):
                 self.list_groups(response_format='csv')
                 response = self._get_details('groups', group, response_format=response_format)
                 df = self._pandafy_response(response, skiprows=4)
+                df_group = df.iloc[0]
+                df_series = df.iloc[3:]
 
             self._reset_url()
-            return df
+            return df_group, df_series
 
 

@@ -75,11 +75,12 @@ def test_details():
 
     # Group Lists
     group_detail_start = time.time()
-    df = vi.get_group_detail("FX_RATES_DAILY", response_format='csv')
+    df_group, df_series = vi.get_group_detail("FX_RATES_DAILY", response_format='csv')
     group_detail_time = time.time() - group_detail_start
-    assert isinstance(df, pd.DataFrame)
+    assert isinstance(df_group, pd.DataFrame)
+    assert isinstance(df_series, pd.DataFrame)
     group_detail_start2 = time.time()
-    df = vi.get_group_detail("FX_RATES_DAILY", response_format='csv')
+    df_group, df_series = vi.get_group_detail("FX_RATES_DAILY", response_format='csv')
     group_detail_time2 = time.time() - group_detail_start2
     assert group_detail_time2 < group_detail_time
 
