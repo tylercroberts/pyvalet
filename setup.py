@@ -23,6 +23,7 @@ setup(
             "tornado>=4.2, <6.0",
             "ipykernel>=4.8.1, <5.0",
         ],
-        "tests": ["pytest"]
+        "tests": ["pytest",
+                  "pytest-cov"]
     },
 )
