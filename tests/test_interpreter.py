@@ -137,3 +137,12 @@ def test_observations():
 
     logger.info("Completed tests for observations")
 
+
+def test_fx_rss():
+    vi = ValetInterpreter(logger=logger)
+    rss = vi.get_fx_rss('FXUSDCAD')
+    assert isinstance(rss, str)
+    rss = vi.get_fx_rss('FXUSDCAD')  # Call again to check that caching works.
+
+    with pytest.raises(SeriesException):
+        rss = vi.get_fx_rss('INCORRECT')

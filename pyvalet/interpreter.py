@@ -1,5 +1,11 @@
-from io import StringIO
+"""
+Interpreter module for `pyvalet`
+
+This module defines the base class, and concrete implementation for our API wrapper.
+"""
+
 import requests
+from io import StringIO
 from pathlib import Path
 from typing import Dict, Iterable, List, Tuple
 import pandas as pd
@@ -342,3 +348,37 @@ class ValetInterpreter(BaseInterpreter):
             df = self._get_group_observations(group, response_format=response_format, **kwargs)
             self._reset_url()
             return df
+
+    def _get_fx_rss(self, endpoint):
+        # response_format must be positional because of how _prepare_requests works.
+        self._prepare_requests('fx_rss', endpoint)
+        response = requests.get(self.url)
+        if self.logger is not None:
+            self.logger.debug(f"Query for {endpoint} observations returned code {response.status_code}")
+        return response
+
+    def get_fx_rss(self, series: str):
+        """
+        Interface for accessing the RSS feeds offered by Valet.
+
+        Args:
+            series (str): Series name. You can find a list of these by calling `.list_series()`
+
+        Returns:
+            (str) String containing xml document text for the RSS feed.
+        """
+        # Make sure that the series exists before bothering to send request.
+        if self.series_list is None:
+            self.list_series(response_format='csv')
+            self._reset_url()
+
+        if series in self.series_list['name'].unique():
+            response = self._get_fx_rss(series)
+            self._reset_url()
+            return response.text
+
+        else:
+            if self.logger is not None:
+                self.logger.debug(f"The endpoint: {self.url} does not exist in the current Valet series list")
+            raise SeriesException("The series passed does not lead to a Valet endpoint, "
+                                 "check your spelling and try again.")
