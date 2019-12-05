@@ -1,7 +1,7 @@
 # pyvalet
 ![](https://travis-ci.com/tylercroberts/pyvalet.svg?branch=master)
 ![](tests/results/coverage.svg)
-![](https://img.shields.io/badge/Python-3.6-blue)
+![](https://img.shields.io/badge/Python-3.6%2C%203.7-blue)
 
 Simple, pandas integrated API wrapper for the Bank of Canada Valet API.
 
@@ -62,6 +62,7 @@ and `get_groups_observations()` methods.
 
 ```python
 df_series, df = vi.get_series_observations("FXUSDCAD", response_format='csv')
+df = vi.get_group_observations("FX_RATES_DAILY", response_format='csv')
 ```
 
 Additional keyword arguments can be passed to alter the query. See the docstrings for more information.

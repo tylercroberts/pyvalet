@@ -11,8 +11,7 @@ class BaseInterpreter(object):
         # These two attributes are the used to as the basis for all queries made to the Interpreter.
         self.base_url = ''
         self.url = self.base_url
-        if logger is not None:
-            self._enable_logging(logger)
+        self._enable_logging(logger)
 
     def _enable_logging(self, logger):
         self.logger = logger
@@ -276,7 +275,8 @@ class ValetInterpreter(BaseInterpreter):
             self._reset_url()
             return df
 
-    def _parse_group_observations(self, response):
+    @staticmethod
+    def _parse_group_observations(response):
         # TODO: Should really do some more splitting to get the details for the group & all series to be consistent
         splits = response.text.split("OBSERVATIONS")
         return splits[1]
@@ -286,7 +286,7 @@ class ValetInterpreter(BaseInterpreter):
         if group in self.groups_list['name'].unique():
             response = self._get_observations(f"group/{group}", response_format=response_format, **kwargs)
             cleaned = self._parse_group_observations(response)
-            df = self._pandafy_response(cleaned, skiprows=10)  # TODO: This will not work with comma sep series.
+            df = self._pandafy_response(cleaned, skiprows=0)  # TODO: This will not work with comma sep series.
             if self.logger is not None:
                 self.logger.debug(f"The {group} group has {df.shape[0]} observations")
         else:

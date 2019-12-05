@@ -10,6 +10,7 @@ def test_interpreter():
     vi = ValetInterpreter()
     vi._enable_logging(logger=logger)
 
+
 def test_endpoints():
     vi = ValetInterpreter(logger=logger)
     # Test that the list endpoints are still valid. This may make debugging easier if they change, or become outdated.
@@ -32,6 +33,7 @@ def test_endpoints():
 
     logger.info("Confirmed that only strings will work for _prepare_requests()")
     logger.info("Completed tests for endpoints")
+
 
 def test_lists():
 
@@ -56,6 +58,7 @@ def test_lists():
     logger.info("Checked that the lists are accessible, are cached correctly.")
 
     logger.info("Completed tests for lists")
+
 
 def test_details():
     # TODO: Here we just test a sample of handcoded endpoints, may want to look at a broader selection.
@@ -127,6 +130,7 @@ def test_observations():
 
     # Try without any kwargs:
     df_series, df = vi.get_series_observations("FXUSDCAD", response_format='csv')
+
     # Try without any kwargs:
     df = vi.get_group_observations("FX_RATES_DAILY", response_format='csv')
     logger.info("Passed run of observations without kwargs")
