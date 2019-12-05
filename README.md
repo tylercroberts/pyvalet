@@ -44,7 +44,26 @@ vi.groups_list
 To get more details about these series or groups, the `get_series_detail()` 
 or `get_group_detail()` methods are available
 ```python
-vi.get_series_detail("FXUSDCAD", response_format='csv')
+df = vi.get_series_detail("FXUSDCAD", response_format='csv')
 
-vi.get_group_detail("FX_RATES_DAILY", response_format='csv')
+df_group, df_series = vi.get_group_detail("FX_RATES_DAILY", response_format='csv')
 ```
+
+The output of `.get_series_detail()` is  a `pandas` DataFrame containing, among other things, 
+the name and description of a given series.
+
+The output of `.get_group_detail()` is one `pandas` Series, and one DataFrame. The Series containing details
+about the group itself, and the DataFrame containing the same information about all series in the group.
+
+Diving even deeper, you can pull observations from these series or groups using the `get_series_observations()`
+and `get_groups_observations()` methods.
+
+```python
+df_series, df = vi.get_series_observations("FXUSDCAD", response_format='csv')
+```
+
+Additional keyword arguments can be passed to alter the query. See the docstrings for more information.
+
+Like the methods for group details, the output of `get_series_observations()` is one `pandas` Series, 
+and one DataFrame. The Series contains the details for the series queries, 
+and the DataFrame contains the observations themselves.
