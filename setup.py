@@ -5,9 +5,18 @@ from setuptools import find_packages, setup
 with open("requirements.txt", "r", encoding="utf-8") as f:
     requires = [x.strip() for x in f if x.strip()]
 
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
 setup(
     name="pyvalet",
     version="0.1",
+    author='Tyler Roberts',
+    author_email='tcroberts@live.ca',
+    description="BoC Valet API Wrapper",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    url="https://github.com/tylercroberts/pyvalet",
     packages=find_packages(exclude=["tests"]),
     install_requires=requires,
     extras_require={
@@ -27,4 +36,10 @@ setup(
                   "pytest-cov==2.8.1",
                   "coverage-badge"]
     },
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+    ],
+    python_requires='>=3.6'
 )
