@@ -156,5 +156,11 @@ def test_fx_rss():
     assert isinstance(rss, str)
     rss = vi.get_fx_rss('FXUSDCAD')  # Call again to check that caching works.
 
+    # Check multiple series
+    rss = vi.get_fx_rss(['FXUSDCAD', 'FXEURCAD'])
+    assert isinstance(rss, str)
+
     with pytest.raises(SeriesException):
         rss = vi.get_fx_rss('INCORRECT')
+    with pytest.raises(SeriesException):
+        rss = vi.get_fx_rss(['FXUSDCAD', 'INCORRECT'])

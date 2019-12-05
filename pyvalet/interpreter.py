@@ -367,6 +367,7 @@ class ValetInterpreter(BaseInterpreter):
             return df
 
     def _get_fx_rss(self, endpoint):
+
         # response_format must be positional because of how _prepare_requests works.
         self._prepare_requests('fx_rss', endpoint)
         response = requests.get(self.url)
@@ -374,22 +375,38 @@ class ValetInterpreter(BaseInterpreter):
             self.logger.debug(f"Query for {endpoint} observations returned code {response.status_code}")
         return response
 
-    def get_fx_rss(self, series: str):
+    def get_fx_rss(self, series: str or list):
         """
         Interface for accessing the RSS feeds offered by Valet.
 
         Args:
-            series (str): Series name. You can find a list of these by calling `.list_series()`
+            series (str or list): Series name, or list of names.
+                                  You can find a list of valid names by calling `.list_series()`
 
         Returns:
-            (str) String containing xml document text for the RSS feed.
+            (str) String containing xml documents text for the RSS feed.
         """
         # Make sure that the series exists before bothering to send request.
         if self.series_list is None:
             self.list_series(response_format='csv')
             self._reset_url()
 
-        if series in self.series_list['name'].unique():
+        all_series = list(self.series_list['name'].unique())
+
+        # Make sure that the series exists before bothering to send request.
+        if (series in all_series) or isinstance(series, list):
+            if isinstance(series, list):  # For passed list of strings.
+                if all([s in all_series for s in series]):
+                    n_series = len(series)
+                    series = ",".join(series)
+                else:
+                    if self.logger is not None:
+                        self.logger.debug(f"The endpoint: {self.url} contains a series which is not valid")
+                    raise SeriesException("One of the series passed does not lead to a Valet endpoint, "
+                                          "check your spelling and try again.")
+
+            else:
+                n_series = 1
             response = self._get_fx_rss(series)
             self._reset_url()
             return response.text
