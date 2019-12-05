@@ -34,7 +34,8 @@ setup(
         ],
         "tests": ["pytest==5.2.1",
                   "pytest-cov==2.8.1",
-                  "coverage-badge"]
+                  "coverage-badge",
+                  "coveralls"]
     },
     classifiers=[
         "Programming Language :: Python :: 3",

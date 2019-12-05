@@ -1,6 +1,6 @@
 # pyvalet
 ![](https://travis-ci.com/tylercroberts/pyvalet.svg?branch=master)
-![](tests/results/coverage.svg)
+[![Coverage Status](https://coveralls.io/repos/github/tylercroberts/pyvalet/badge.svg?branch=master)](https://coveralls.io/github/tylercroberts/pyvalet?branch=master)
 ![](https://img.shields.io/badge/Python-3.6%2C%203.7-blue)
 
 Simple, pandas integrated API wrapper for the Bank of Canada Valet API.
