@@ -7,10 +7,15 @@ from .exceptions import *
 
 
 class BaseInterpreter(object):
-    def __init__(self):
+    def __init__(self, logger=None):
         # These two attributes are the used to as the basis for all queries made to the Interpreter.
         self.base_url = ''
         self.url = self.base_url
+        if logger is not None:
+            self._enable_logging(logger)
+
+    def _enable_logging(self, logger):
+        self.logger = logger
 
     def _reset_url(self):
         self.url = self.base_url
@@ -35,6 +40,9 @@ class BaseInterpreter(object):
             query_str += f"{k}={v}&"
         self._set_query(query_str)
 
+        if self.logger is not None:
+            self.logger.debug(f"Finished preparing request to: {self.url}")
+
     @staticmethod
     def _pandafy_response(response: str, skiprows: int = 0) -> pd.DataFrame:
         sio = StringIO(response)
@@ -44,9 +52,9 @@ class BaseInterpreter(object):
 
 class ValetInterpreter(BaseInterpreter):
 
-    def __init__(self):
+    def __init__(self, logger=None):
         # super doesn't do much in our case.
-        super(ValetInterpreter, self).__init__()
+        super(ValetInterpreter, self).__init__(logger=logger)
 
         self.base_url = 'https://www.bankofcanada.ca/valet'
         self.url = self.base_url
@@ -54,30 +62,33 @@ class ValetInterpreter(BaseInterpreter):
         # These provide a cached version of results
         self.series_list = None
         self.groups_list = None
-        self.logger = None
-
-    def _enable_logging(self, logger):
-        self.logger = logger
 
     def _get_lists(self, endpoint: str, response_format='csv'):
         self._prepare_requests('lists', endpoint, response_format)
         response = requests.get(self.url)
 
         if self.logger is not None:
-            self.logger.info(f"Query for {endpoint} lists returned code {response.status_code}")
+            self.logger.debug(f"Query for {endpoint} lists returned code {response.status_code}")
 
         return response
 
     def _get_details(self, detail_type: str, endpoint: str, response_format='csv'):
         self._prepare_requests(detail_type, endpoint, response_format)
         response = requests.get(self.url)
+
+        if self.logger is not None:
+            self.logger.debug(f"Query for {detail_type}/{endpoint} details returned code {response.status_code}")
+
         return response
 
     def _get_observations(self, endpoint: str, response_format='csv', **kwargs):
         # response_format must be positional because of how _prepare_requests works.
         self._prepare_requests('observations', endpoint, response_format, **kwargs)
-        print(self.url)
         response = requests.get(self.url)
+
+        if self.logger is not None:
+            self.logger.debug(f"Query for {endpoint} observations returned code {response.status_code}")
+
         return response
 
     def list_series(self, response_format='csv'):
@@ -93,10 +104,17 @@ class ValetInterpreter(BaseInterpreter):
             return self.series_list
         else:
             if response_format != 'csv':
+
+                if self.logger is not None:
+                    self.logger.debug(f"{response_format} is not yet supported, "
+                                      f"please use csv or check for updates on GitHub")
+
                 raise NotImplementedError("JSON and XML not yet supported")
             else:
                 response = self._get_lists('series', response_format=response_format)
                 df = self._pandafy_response(response.text, skiprows=4)
+                if self.logger is not None:
+                    self.logger.debug(f"There are {df.shape[0]} series in this list.")
                 self._reset_url()
                 self.series_list = df
                 return df
@@ -114,10 +132,15 @@ class ValetInterpreter(BaseInterpreter):
             return self.groups_list
         else:
             if response_format != 'csv':
+                if self.logger is not None:
+                    self.logger.debug(f"{response_format} is not yet supported, "
+                                      f"please use csv or check for updates on GitHub")
                 raise NotImplementedError("JSON and XML not yet supported")
             else:
                 response = self._get_lists('groups', response_format=response_format)
                 df = self._pandafy_response(response.text, skiprows=4)
+                if self.logger is not None:
+                    self.logger.debug(f"There are {df.shape[0]} groups in this list.")
                 self._reset_url()
                 self.groups_list = df
                 return df
@@ -127,6 +150,8 @@ class ValetInterpreter(BaseInterpreter):
             response = self._get_details('series', series, response_format=response_format)
             df = self._pandafy_response(response.text, skiprows=4)
         else:
+            if self.logger is not None:
+                self.logger.debug(f"The endpoint: {self.url} does not exist in the current Valet series list")
             raise SeriesException("The series passed does not lead to a Valet endpoint, "
                                   "check your spelling and try again.")
         return df
@@ -142,7 +167,10 @@ class ValetInterpreter(BaseInterpreter):
 
         """
         if response_format != 'csv':
-            raise NotImplementedError
+            if self.logger is not None:
+                self.logger.debug(f"{response_format} is not yet supported, "
+                                  f"please use csv or check for updates on GitHub")
+            raise NotImplementedError("JSON and XML not yet supported")
         else:
             if self.series_list is None:
                 self.list_series(response_format=response_format)
@@ -158,8 +186,12 @@ class ValetInterpreter(BaseInterpreter):
             df = self._pandafy_response(response.text, skiprows=4)
             df_group = df.iloc[0]
             df_series = df.iloc[3:]
+            if self.logger is not None:
+                self.logger.debug(f"The {group} group has {df_series.shape[0]} series contained within it.")
         else:
-            raise GroupException("The series passed does not lead to a Valet endpoint, "
+            if self.logger is not None:
+                self.logger.debug(f"The endpoint: {self.url} does not exist in the current Valet groups list")
+            raise GroupException("The group passed does not lead to a Valet endpoint, "
                                  "check your spelling and try again.")
         return df_group, df_series
 
@@ -175,7 +207,10 @@ class ValetInterpreter(BaseInterpreter):
 
         """
         if response_format != 'csv':
-            raise NotImplementedError
+            if self.logger is not None:
+                self.logger.debug(f"{response_format} is not yet supported, "
+                                  f"please use csv or check for updates on GitHub")
+            raise NotImplementedError("JSON and XML not yet supported")
         else:
             if self.groups_list is None:
                 self.list_groups(response_format='csv')
@@ -192,7 +227,11 @@ class ValetInterpreter(BaseInterpreter):
             df = self._pandafy_response(response.text, skiprows=4)  # TODO: This will not work with comma sep series.
             df_series = df.iloc[0]
             df = df.iloc[3:]
+            if self.logger is not None:
+                self.logger.debug(f"The {series} series has {df.shape[0]} observations")
         else:
+            if self.logger is not None:
+                self.logger.debug(f"The endpoint: {self.url} does not exist in the current Valet series list")
             raise SeriesException("The series passed does not lead to a Valet endpoint, "
                                   "check your spelling and try again.")
 
@@ -224,7 +263,10 @@ class ValetInterpreter(BaseInterpreter):
 
         """
         if response_format != 'csv':
-            raise NotImplementedError
+            if self.logger is not None:
+                self.logger.debug(f"{response_format} is not yet supported, "
+                                  f"please use csv or check for updates on GitHub")
+            raise NotImplementedError("JSON and XML not yet supported")
         else:
             if self.series_list is None:
                 self.list_series(response_format='csv')
@@ -245,8 +287,11 @@ class ValetInterpreter(BaseInterpreter):
             response = self._get_observations(f"group/{group}", response_format=response_format, **kwargs)
             cleaned = self._parse_group_observations(response)
             df = self._pandafy_response(cleaned, skiprows=10)  # TODO: This will not work with comma sep series.
+            if self.logger is not None:
+                self.logger.debug(f"The {group} group has {df.shape[0]} observations")
         else:
-
+            if self.logger is not None:
+                self.logger.debug(f"The endpoint: {self.url} does not exist in the current Valet series list")
             raise GroupException("The series passed does not lead to a Valet endpoint, "
                                  "check your spelling and try again.")
 
@@ -254,7 +299,10 @@ class ValetInterpreter(BaseInterpreter):
 
     def get_group_observations(self, group, response_format='csv', **kwargs):
         if response_format != 'csv':
-            raise NotImplementedError
+            if self.logger is not None:
+                self.logger.debug(f"{response_format} is not yet supported, "
+                                  f"please use csv or check for updates on GitHub")
+            raise NotImplementedError("JSON and XML not yet supported")
         else:
             if self.groups_list is None:
                 self.list_groups(response_format='csv')
