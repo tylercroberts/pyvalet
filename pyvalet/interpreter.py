@@ -288,20 +288,6 @@ class ValetInterpreter(BaseInterpreter):
 
             The first output contains details about the series.
             The second contains the observations themselves
-
-            Terms and Conditions:
-                url: The url to the terms and conditions for using content produced by the Bank of Canada
-            Series Detail:
-                id: The id of the specific series
-                    label: The label of the series
-                    description: The description of the series
-                    dimension: The dimension for this series e.g. date, category, etc.
-                        key: Short name for the dimension
-                        name: Name for the dimension
-            Observations:
-                dimension: The dimension of the observation. Short key is used to define the field.
-                value: The value of the observation
-
         """
         if response_format != 'csv':
             if self.logger is not None:
