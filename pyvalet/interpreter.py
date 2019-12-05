@@ -115,7 +115,7 @@ class ValetInterpreter(BaseInterpreter):
 
     def _get_series_detail(self, series, response_format='csv'):
         if series in self.series_list['name'].unique():
-            response = self._get_details('groups', series, response_format=response_format)
+            response = self._get_details('series', series, response_format=response_format)
             df = self._pandafy_response(response, skiprows=4)
         else:
             raise SeriesException("The series passed does not lead to a Valet endpoint, "
@@ -139,7 +139,6 @@ class ValetInterpreter(BaseInterpreter):
                 self.list_series(response_format=response_format)
 
             df = self._get_series_detail(series, response_format=response_format)
-
             self._reset_url()
             return df
 
@@ -175,6 +174,17 @@ class ValetInterpreter(BaseInterpreter):
             self._reset_url()
             return df_group, df_series
 
+    def _get_series_observations(self, series, response_format='csv', **kwargs):
+        # Make sure that the series exists before bothering to send request.
+        if series in self.series_list['name'].unique():
+            response = self._get_observations(series, response_format=response_format, **kwargs)
+            df = self._pandafy_response(response, skiprows=4)  # TODO: This will not work with comma sep series.
+        else:
+            raise SeriesException("The series passed does not lead to a Valet endpoint, "
+                                  "check your spelling and try again.")
+
+        return df
+
     def get_series_observations(self, series, response_format='csv', **kwargs):
         """
         # TODO: Add support for series as comma separated lists.
@@ -203,23 +213,9 @@ class ValetInterpreter(BaseInterpreter):
         if response_format != 'csv':
             raise NotImplementedError
         else:
-            if self.series_list is not None:
-                # Make sure that the series exists before bothering to send request.
-                if series in self.series_list['name'].unique():
-                    response = self._get_observations(series, response_format=response_format, **kwargs)
-                    df = self._pandafy_response(response, skiprows=4)  # TODO: This will not work with comma sep series.
-                else:
-                    raise SeriesException("The series passed does not lead to a Valet endpoint, "
-                                          "check your spelling and try again.")
-
-            else:
+            if self.series_list is None:
                 self.list_series(response_format='csv')
-                # Check against the series list we just pulled to make sure that the series exists as an endpoint.
-                if series in self.series_list['name'].unique():
-                    response = self._get_observations(series, response_format=response_format, **kwargs)
-                    df = self._pandafy_response(response, skiprows=4)
-                else:
-                    raise SeriesException("The series passed does not lead to a Valet endpoint, "
-                                     "check your spelling and try again.")
+
+            df = self._get_series_observations(series, response_format=response_format, **kwargs)
             self._reset_url()
             return df
