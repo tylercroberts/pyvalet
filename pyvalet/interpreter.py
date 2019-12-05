@@ -36,8 +36,8 @@ class BaseInterpreter(object):
         self._set_query(query_str)
 
     @staticmethod
-    def _pandafy_response(response: requests.Response, skiprows: int = 0) -> pd.DataFrame:
-        sio = StringIO(response.text)
+    def _pandafy_response(response: str, skiprows: int = 0) -> pd.DataFrame:
+        sio = StringIO(response)
         df = pd.read_csv(sio, skiprows=skiprows)
         return df
 
@@ -54,20 +54,29 @@ class ValetInterpreter(BaseInterpreter):
         # These provide a cached version of results
         self.series_list = None
         self.groups_list = None
+        self.logger = None
 
-    def _get_lists(self, list_type, response_format='csv'):
-        self._prepare_requests('lists', list_type, response_format)
+    def _enable_logging(self, logger):
+        self.logger = logger
+
+    def _get_lists(self, endpoint: str, response_format='csv'):
+        self._prepare_requests('lists', endpoint, response_format)
+        response = requests.get(self.url)
+
+        if self.logger is not None:
+            self.logger.info(f"Query for {endpoint} lists returned code {response.status_code}")
+
+        return response
+
+    def _get_details(self, detail_type: str, endpoint: str, response_format='csv'):
+        self._prepare_requests(detail_type, endpoint, response_format)
         response = requests.get(self.url)
         return response
 
-    def _get_details(self, detail_type, series, response_format='csv'):
-        self._prepare_requests(detail_type, series, response_format)
-        response = requests.get(self.url)
-        return response
-
-    def _get_observations(self, series, response_format='csv', **kwargs):
+    def _get_observations(self, endpoint: str, response_format='csv', **kwargs):
         # response_format must be positional because of how _prepare_requests works.
-        self._prepare_requests('observations', series, response_format, **kwargs)
+        self._prepare_requests('observations', endpoint, response_format, **kwargs)
+        print(self.url)
         response = requests.get(self.url)
         return response
 
@@ -87,7 +96,7 @@ class ValetInterpreter(BaseInterpreter):
                 raise NotImplementedError("JSON and XML not yet supported")
             else:
                 response = self._get_lists('series', response_format=response_format)
-                df = self._pandafy_response(response, skiprows=4)
+                df = self._pandafy_response(response.text, skiprows=4)
                 self._reset_url()
                 self.series_list = df
                 return df
@@ -108,7 +117,7 @@ class ValetInterpreter(BaseInterpreter):
                 raise NotImplementedError("JSON and XML not yet supported")
             else:
                 response = self._get_lists('groups', response_format=response_format)
-                df = self._pandafy_response(response, skiprows=4)
+                df = self._pandafy_response(response.text, skiprows=4)
                 self._reset_url()
                 self.groups_list = df
                 return df
@@ -116,7 +125,7 @@ class ValetInterpreter(BaseInterpreter):
     def _get_series_detail(self, series, response_format='csv'):
         if series in self.series_list['name'].unique():
             response = self._get_details('series', series, response_format=response_format)
-            df = self._pandafy_response(response, skiprows=4)
+            df = self._pandafy_response(response.text, skiprows=4)
         else:
             raise SeriesException("The series passed does not lead to a Valet endpoint, "
                                   "check your spelling and try again.")
@@ -137,6 +146,7 @@ class ValetInterpreter(BaseInterpreter):
         else:
             if self.series_list is None:
                 self.list_series(response_format=response_format)
+                self._reset_url()
 
             df = self._get_series_detail(series, response_format=response_format)
             self._reset_url()
@@ -145,7 +155,7 @@ class ValetInterpreter(BaseInterpreter):
     def _get_group_detail(self, group, response_format='csv'):
         if group in self.groups_list['name'].unique():
             response = self._get_details('groups', group, response_format=response_format)
-            df = self._pandafy_response(response, skiprows=4)
+            df = self._pandafy_response(response.text, skiprows=4)
             df_group = df.iloc[0]
             df_series = df.iloc[3:]
         else:
@@ -169,6 +179,7 @@ class ValetInterpreter(BaseInterpreter):
         else:
             if self.groups_list is None:
                 self.list_groups(response_format='csv')
+                self._reset_url()
 
             df_group, df_series = self._get_group_detail(group, response_format='csv')
             self._reset_url()
@@ -178,7 +189,7 @@ class ValetInterpreter(BaseInterpreter):
         # Make sure that the series exists before bothering to send request.
         if series in self.series_list['name'].unique():
             response = self._get_observations(series, response_format=response_format, **kwargs)
-            df = self._pandafy_response(response, skiprows=4)  # TODO: This will not work with comma sep series.
+            df = self._pandafy_response(response.text, skiprows=4)  # TODO: This will not work with comma sep series.
             df_series = df.iloc[0]
             df = df.iloc[3:]
         else:
@@ -217,7 +228,38 @@ class ValetInterpreter(BaseInterpreter):
         else:
             if self.series_list is None:
                 self.list_series(response_format='csv')
+                self._reset_url()
 
             df = self._get_series_observations(series, response_format=response_format, **kwargs)
+            self._reset_url()
+            return df
+
+    def _parse_group_observations(self, response):
+        # TODO: Should really do some more splitting to get the details for the group & all series to be consistent
+        splits = response.text.split("OBSERVATIONS")
+        return splits[1]
+
+    def _get_group_observations(self, group, response_format='csv', **kwargs):
+        # Make sure that the series exists before bothering to send request.
+        if group in self.groups_list['name'].unique():
+            response = self._get_observations(f"group/{group}", response_format=response_format, **kwargs)
+            cleaned = self._parse_group_observations(response)
+            df = self._pandafy_response(cleaned, skiprows=10)  # TODO: This will not work with comma sep series.
+        else:
+
+            raise GroupException("The series passed does not lead to a Valet endpoint, "
+                                 "check your spelling and try again.")
+
+        return df
+
+    def get_group_observations(self, group, response_format='csv', **kwargs):
+        if response_format != 'csv':
+            raise NotImplementedError
+        else:
+            if self.groups_list is None:
+                self.list_groups(response_format='csv')
+                self._reset_url()
+
+            df = self._get_group_observations(group, response_format=response_format, **kwargs)
             self._reset_url()
             return df
