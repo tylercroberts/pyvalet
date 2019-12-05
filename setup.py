@@ -10,7 +10,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="pyvalet",
-    version="0.1",
+    version="0.2",
     author='Tyler Roberts',
     author_email='tcroberts@live.ca',
     description="BoC Valet API Wrapper",
