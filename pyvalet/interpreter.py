@@ -1,5 +1,11 @@
-from io import StringIO
+"""
+Interpreter module for `pyvalet`
+
+This module defines the base class, and concrete implementation for our API wrapper.
+"""
+
 import requests
+from io import StringIO
 from pathlib import Path
 from typing import Dict, Iterable, List, Tuple
 import pandas as pd
@@ -7,8 +13,16 @@ from .exceptions import *
 
 
 class BaseInterpreter(object):
+
     def __init__(self, logger=None):
-        # These two attributes are the used to as the basis for all queries made to the Interpreter.
+        """
+        In any subclass, base_url should be set to whatever the root URL would be, and self.url will be
+        set temporarily to be the same.
+
+        Args:
+            logger : Logging Handler. I tested with `loguru`, but a configured Handler from `logging` should also work.
+        """
+
         self.base_url = ''
         self.url = self.base_url
         self._enable_logging(logger)
@@ -43,7 +57,7 @@ class BaseInterpreter(object):
             self.logger.debug(f"Finished preparing request to: {self.url}")
 
     @staticmethod
-    def _pandafy_response(response: str, skiprows: int = 0) -> pd.DataFrame:
+    def _pandafy_response(response: str, skiprows: int = 0,) -> pd.DataFrame:
         sio = StringIO(response)
         df = pd.read_csv(sio, skiprows=skiprows)
         return df
@@ -92,12 +106,13 @@ class ValetInterpreter(BaseInterpreter):
 
     def list_series(self, response_format='csv'):
         """
+        Provides a list of all valid series endpoints.
 
         Args:
             response_format (str): Currently only 'csv' is supported, json and xml potentially in the future.
 
         Returns:
-
+            (pd.DataFrame) with columns: name, label, description.
         """
         if self.series_list is not None:
             return self.series_list
@@ -120,12 +135,13 @@ class ValetInterpreter(BaseInterpreter):
 
     def list_groups(self, response_format='csv'):
         """
+        Provides a list of all valid series endpoints.
 
         Args:
             response_format (str): Currently only 'csv' is supported, json and xml potentially in the future.
 
         Returns:
-
+            (pd.DataFrame) with columns: name, label, description.
         """
         if self.groups_list is not None:
             return self.groups_list
@@ -157,13 +173,15 @@ class ValetInterpreter(BaseInterpreter):
 
     def get_series_detail(self, series, response_format='csv'):
         """
+        Interfacce to get details on a specified series.
+        Performs another query to ensure that the group actually exists.
 
         Args:
-            series (str):
+            series (str): Series name. You can find a list of these by calling `.list_series()`
             response_format (str): Currently only 'csv' is supported, json and xml potentially in the future.
 
         Returns:
-
+            (pd.DataFrame) with columns: name, label, description
         """
         if response_format != 'csv':
             if self.logger is not None:
@@ -198,12 +216,13 @@ class ValetInterpreter(BaseInterpreter):
         """
         Interface for a user to get details about a group.
         Performs another query to ensure that the group actually exists.
+
         Args:
             group (str): Comes from `name` column of the `.groups_list` attribute.
             response_format (str): Currently only 'csv' is supported, json and xml potentially in the future.
 
         Returns:
-
+            (pd.Series, pd.DataFrame) Both outputs have 3 columns: name, label, description.
         """
         if response_format != 'csv':
             if self.logger is not None:
@@ -220,15 +239,32 @@ class ValetInterpreter(BaseInterpreter):
             return df_group, df_series
 
     def _get_series_observations(self, series, response_format='csv', **kwargs):
+        all_series = list(self.series_list['name'].unique())
+
         # Make sure that the series exists before bothering to send request.
-        if series in self.series_list['name'].unique():
+        if (series in all_series) or isinstance(series, list):
+            if isinstance(series, list):  # For passed list of strings.
+                if all([s in all_series for s in series]):
+                    n_series = len(series)
+                    series = ",".join(series)
+                else:
+                    if self.logger is not None:
+                        self.logger.debug(f"The endpoint: {self.url} contains a series which is not valid")
+                    raise SeriesException("One of the series passed does not lead to a Valet endpoint, "
+                                          "check your spelling and try again.")
+            else:
+                n_series = 1
+            # For passed single string.
             response = self._get_observations(series, response_format=response_format, **kwargs)
             df = self._pandafy_response(response.text, skiprows=4)  # TODO: This will not work with comma sep series.
-            df_series = df.iloc[0]
-            df = df.iloc[3:]
+            df_series = df.iloc[0:n_series]
+            df = df.iloc[1+n_series:]
+            headers = df.iloc[0]
+            df = pd.DataFrame(df.values[1:], columns=headers)
             if self.logger is not None:
                 self.logger.debug(f"The {series} series has {df.shape[0]} observations")
         else:
+
             if self.logger is not None:
                 self.logger.debug(f"The endpoint: {self.url} does not exist in the current Valet series list")
             raise SeriesException("The series passed does not lead to a Valet endpoint, "
@@ -238,28 +274,20 @@ class ValetInterpreter(BaseInterpreter):
 
     def get_series_observations(self, series, response_format='csv', **kwargs):
         """
-        # TODO: Add support for series as comma separated lists, as allowed by the API.
+        Interface to pull observations for a given series.
+        Performs another query to ensure the series exists on Valet
+
         Args:
-            series (str):
+            series (str or list): Series name. Currently only supports a single series.
             response_format (str): Currently only 'csv' is supported, json and xml potentially in the future.
             **kwargs: Key word arguments can include; `start_date`, `end_date`, `recent`, `recent_weeks`, `recent_days`,
             `recent_months`, `recent_years`,
 
         Returns:
+            (pd.DataFrame, pd.DataFrame)
 
-            Terms and Conditions:
-                url: The url to the terms and conditions for using content produced by the Bank of Canada
-            Series Detail:
-                id: The id of the specific series
-                    label: The label of the series
-                    description: The description of the series
-                    dimension: The dimension for this series e.g. date, category, etc.
-                        key: Short name for the dimension
-                        name: Name for the dimension
-            Observations:
-                dimension: The dimension of the observation. Short key is used to define the field.
-                value: The value of the observation
-
+            The first output contains details about the series.
+            The second contains the observations themselves
         """
         if response_format != 'csv':
             if self.logger is not None:
@@ -276,17 +304,21 @@ class ValetInterpreter(BaseInterpreter):
             return df
 
     @staticmethod
-    def _parse_group_observations(response):
+    def _parse_group_observations(response: requests.Response) -> (str, str):
         # TODO: Should really do some more splitting to get the details for the group & all series to be consistent
-        splits = response.text.split("OBSERVATIONS")
-        return splits[1]
+        split1 = response.text.split('\n"SERIES"')
+        of_interest = split1[1]
+        split2 = of_interest.split("OBSERVATIONS")
+        # Remove the unnecessary line at the end of the first split, return both csv strings.
+        return "".join(split2[0].split("\n\n")[:-1]), split2[1]
 
-    def _get_group_observations(self, group, response_format='csv', **kwargs):
+    def _get_group_observations(self, group: str, response_format: str='csv', **kwargs):
         # Make sure that the series exists before bothering to send request.
         if group in self.groups_list['name'].unique():
             response = self._get_observations(f"group/{group}", response_format=response_format, **kwargs)
-            cleaned = self._parse_group_observations(response)
-            df = self._pandafy_response(cleaned, skiprows=0)  # TODO: This will not work with comma sep series.
+            series_str, obs_str = self._parse_group_observations(response)
+            df_series = self._pandafy_response(series_str, skiprows=0)
+            df = self._pandafy_response(obs_str, skiprows=0)
             if self.logger is not None:
                 self.logger.debug(f"The {group} group has {df.shape[0]} observations")
         else:
@@ -295,9 +327,21 @@ class ValetInterpreter(BaseInterpreter):
             raise GroupException("The series passed does not lead to a Valet endpoint, "
                                  "check your spelling and try again.")
 
-        return df
+        return df_series, df
 
-    def get_group_observations(self, group, response_format='csv', **kwargs):
+    def get_group_observations(self, group: str, response_format: str = 'csv', **kwargs):
+        """
+        Interface to pull observations for all series in a group.
+        Performs another query to ensure the group exists as an endpoint on Valet
+
+        Args:
+            group (str): Group name. Can get a list of valid groups with `.list_groups()`
+            response_format (str): Currently only 'csv' is supported. JSON and XML are other options in the future.
+            **kwargs:
+
+        Returns:
+            (pd.DataFrame, pd.DataFrame)
+        """
         if response_format != 'csv':
             if self.logger is not None:
                 self.logger.debug(f"{response_format} is not yet supported, "
@@ -308,6 +352,57 @@ class ValetInterpreter(BaseInterpreter):
                 self.list_groups(response_format='csv')
                 self._reset_url()
 
-            df = self._get_group_observations(group, response_format=response_format, **kwargs)
+            df_series, df = self._get_group_observations(group, response_format=response_format, **kwargs)
             self._reset_url()
-            return df
+            return df_series, df
+
+    def _get_fx_rss(self, endpoint):
+
+        # response_format must be positional because of how _prepare_requests works.
+        self._prepare_requests('fx_rss', endpoint)
+        response = requests.get(self.url)
+        if self.logger is not None:
+            self.logger.debug(f"Query for {endpoint} observations returned code {response.status_code}")
+        return response
+
+    def get_fx_rss(self, series: str or list):
+        """
+        Interface for accessing the RSS feeds offered by Valet.
+
+        Args:
+            series (str or list): Series name, or list of names.
+                                  You can find a list of valid names by calling `.list_series()`
+
+        Returns:
+            (str) String containing xml documents text for the RSS feed.
+        """
+        # Make sure that the series exists before bothering to send request.
+        if self.series_list is None:
+            self.list_series(response_format='csv')
+            self._reset_url()
+
+        all_series = list(self.series_list['name'].unique())
+
+        # Make sure that the series exists before bothering to send request.
+        if (series in all_series) or isinstance(series, list):
+            if isinstance(series, list):  # For passed list of strings.
+                if all([s in all_series for s in series]):
+                    n_series = len(series)
+                    series = ",".join(series)
+                else:
+                    if self.logger is not None:
+                        self.logger.debug(f"The endpoint: {self.url} contains a series which is not valid")
+                    raise SeriesException("One of the series passed does not lead to a Valet endpoint, "
+                                          "check your spelling and try again.")
+
+            else:
+                n_series = 1
+            response = self._get_fx_rss(series)
+            self._reset_url()
+            return response.text
+
+        else:
+            if self.logger is not None:
+                self.logger.debug(f"The endpoint: {self.url} does not exist in the current Valet series list")
+            raise SeriesException("The series passed does not lead to a Valet endpoint, "
+                                  "check your spelling and try again.")

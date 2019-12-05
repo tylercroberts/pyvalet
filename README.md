@@ -1,5 +1,6 @@
 # pyvalet
 ![](https://travis-ci.com/tylercroberts/pyvalet.svg?branch=master)
+![](https://img.shields.io/pypi/v/pyvalet)
 [![Coverage Status](https://coveralls.io/repos/github/tylercroberts/pyvalet/badge.svg?branch=master)](https://coveralls.io/github/tylercroberts/pyvalet?branch=master)
 ![](https://img.shields.io/badge/Python-3.6%2C%203.7-blue)
 
@@ -21,8 +22,7 @@ vi = ValetInterpreter()
 
 This will be your interface with all the features of pyvalet.
 
-To see what sort of data is available, try running one of the following commands:
-
+### Series and Group Lists:
 ```python
 vi.list_series()
 
@@ -42,6 +42,7 @@ vi.series_list
 vi.groups_list
 ```
 
+### Series and Group Details:
 
 To get more details about these series or groups, the `get_series_detail()` 
 or `get_group_detail()` methods are available
@@ -57,6 +58,8 @@ the name and description of a given series.
 The output of `.get_group_detail()` is one `pandas` Series, and one DataFrame. The Series containing details
 about the group itself, and the DataFrame containing the same information about all series in the group.
 
+### Series and Group Observations:
+
 Diving even deeper, you can pull observations from these series or groups using the `get_series_observations()`
 and `get_groups_observations()` methods.
 
@@ -67,6 +70,15 @@ df = vi.get_group_observations("FX_RATES_DAILY", response_format='csv')
 
 Additional keyword arguments can be passed to alter the query. See the docstrings for more information.
 
-Like the methods for group details, the output of `get_series_observations()` is one `pandas` Series, 
-and one DataFrame. The Series contains the details for the series queries, 
-and the DataFrame contains the observations themselves.
+Like the methods for group details, the output of `get_series_observations()` is two `pandas` DataFrames, 
+The first contains the details for the series queries, and the second contains the observations themselves.
+
+
+### RSS Feed for FX Rates:
+`pyvalet` also offers an interface for pulling RSS feeds from the Valet API.
+
+```python
+vi.get_fx_rss("FXUSDCAD")
+```
+
+This command will accept any series name as an argument, and returns an XML string containing the RSS feed.
