@@ -239,15 +239,32 @@ class ValetInterpreter(BaseInterpreter):
             return df_group, df_series
 
     def _get_series_observations(self, series, response_format='csv', **kwargs):
+        all_series = list(self.series_list['name'].unique())
+
         # Make sure that the series exists before bothering to send request.
-        if series in self.series_list['name'].unique():
+        if (series in all_series) or isinstance(series, list):
+            if isinstance(series, list):  # For passed list of strings.
+                if all([s in all_series for s in series]):
+                    n_series = len(series)
+                    series = ",".join(series)
+                else:
+                    if self.logger is not None:
+                        self.logger.debug(f"The endpoint: {self.url} contains a series which is not valid")
+                    raise SeriesException("One of the series passed does not lead to a Valet endpoint, "
+                                          "check your spelling and try again.")
+            else:
+                n_series = 1
+            # For passed single string.
             response = self._get_observations(series, response_format=response_format, **kwargs)
             df = self._pandafy_response(response.text, skiprows=4)  # TODO: This will not work with comma sep series.
-            df_series = df.iloc[0]
-            df = df.iloc[3:]
+            df_series = df.iloc[0:n_series]
+            df = df.iloc[1+n_series:]
+            headers = df.iloc[0]
+            df = pd.DataFrame(df.values[1:], columns=headers)
             if self.logger is not None:
                 self.logger.debug(f"The {series} series has {df.shape[0]} observations")
         else:
+
             if self.logger is not None:
                 self.logger.debug(f"The endpoint: {self.url} does not exist in the current Valet series list")
             raise SeriesException("The series passed does not lead to a Valet endpoint, "
@@ -261,7 +278,7 @@ class ValetInterpreter(BaseInterpreter):
         Performs another query to ensure the series exists on Valet
 
         Args:
-            series (str): Series name. Currently only supports a single series.
+            series (str or list): Series name. Currently only supports a single series.
             response_format (str): Currently only 'csv' is supported, json and xml potentially in the future.
             **kwargs: Key word arguments can include; `start_date`, `end_date`, `recent`, `recent_weeks`, `recent_days`,
             `recent_months`, `recent_years`,
@@ -381,4 +398,4 @@ class ValetInterpreter(BaseInterpreter):
             if self.logger is not None:
                 self.logger.debug(f"The endpoint: {self.url} does not exist in the current Valet series list")
             raise SeriesException("The series passed does not lead to a Valet endpoint, "
-                                 "check your spelling and try again.")
+                                  "check your spelling and try again.")

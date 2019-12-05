@@ -108,7 +108,7 @@ def test_observations():
 
     # Series Lists
     df_series, df = vi.get_series_observations("FXUSDCAD", response_format='csv', end_date='2018-12-01')
-    assert isinstance(df_series, pd.Series)
+    assert isinstance(df_series, pd.DataFrame)
     assert isinstance(df, pd.DataFrame)
     df_series, df = vi.get_series_observations("FXUSDCAD", response_format='csv', end_date='2018-12-01')
 
@@ -134,6 +134,18 @@ def test_observations():
     # Try without any kwargs:
     df = vi.get_group_observations("FX_RATES_DAILY", response_format='csv')
     logger.info("Passed run of observations without kwargs")
+
+    # Test multiple series:
+    df_series, df = vi.get_series_observations(['FXUSDCAD', 'A.AGRI'],
+                                               response_format='csv', end_date='2018-12-01')
+
+    assert isinstance(df_series, pd.DataFrame)
+    assert isinstance(df, pd.DataFrame)
+    with pytest.raises(SeriesException):
+        # One incorrect
+        df_series, df = vi.get_series_observations(['FXUSDCAD', 'INCORRECT'],
+                                                   response_format='csv', end_date='2018-12-01')
+
 
     logger.info("Completed tests for observations")
 
