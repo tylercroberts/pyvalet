@@ -305,7 +305,6 @@ class ValetInterpreter(BaseInterpreter):
 
     @staticmethod
     def _parse_group_observations(response: requests.Response) -> (str, str):
-        # TODO: Should really do some more splitting to get the details for the group & all series to be consistent
         split1 = response.text.split('\n"SERIES"')
         of_interest = split1[1]
         split2 = of_interest.split("OBSERVATIONS")

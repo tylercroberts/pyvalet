@@ -6,10 +6,31 @@
 
 Simple, pandas integrated API wrapper for the Bank of Canada Valet API.
 
-Their documentation page can be found [here](https://www.bankofcanada.ca/valet/docs)
+The Valet API provides programmatic access to all of the data made publicly available by the Bank of Canada, 
+including daily foreign exchange rates, measures of geopolitical risk, mortgage refinancing information 
+and bond rates, just to name a few.
+
+The full Valet API documentation page can be found [here](https://www.bankofcanada.ca/valet/docs).
 
 ### Installation:
-To install this package
+To install this package, you can find the latest stable release on PyPi
+```sh
+pip install pyvalet
+```
+
+Otherwise, you can install from source by first cloning the GitHub repo:
+```sh
+git clone https://github.com/tylercroberts/pyvalet.git
+
+cd pyvalet
+pip install -e .
+```
+
+If you wish to run tests, or build documentation, be sure to put `[tests]`, or `[docs]` after the `.`.
+```sh
+pip install -e ".[tests]"
+pip install -e ".[docs]"
+```
 
 ### Getting Started:
 
@@ -63,15 +84,17 @@ about the group itself, and the DataFrame containing the same information about 
 Diving even deeper, you can pull observations from these series or groups using the `get_series_observations()`
 and `get_groups_observations()` methods.
 
-```python
+```python**
 df_series, df = vi.get_series_observations("FXUSDCAD", response_format='csv')
 df = vi.get_group_observations("FX_RATES_DAILY", response_format='csv')
 ```
 
 Additional keyword arguments can be passed to alter the query. See the docstrings for more information.
 
-Like the methods for group details, the output of `get_series_observations()` is two `pandas` DataFrames, 
-The first contains the details for the series queries, and the second contains the observations themselves.
+Like the methods for group details, the output of `get_series_observations()` and `get_groups_observations` 
+is two `pandas` DataFrames, 
+The first contains the details for either the series or group queried, 
+and the second contains the observations themselves.
 
 
 ### RSS Feed for FX Rates:
@@ -80,5 +103,19 @@ The first contains the details for the series queries, and the second contains t
 ```python
 vi.get_fx_rss("FXUSDCAD")
 ```
-
 This command will accept any series name as an argument, and returns an XML string containing the RSS feed.
+
+### Logging:
+If you are encountering issues with `pyvalet`. 
+You can enable debugging mode by passing a logging handler to the `logger` argument when instantiating the
+ValetInterpreter object. This will output DEBUG level messages. It was tested using the `loguru` package, but
+the base `logging` package, configured with a handler should work as well.
+
+
+## Contributing:
+You can run tests from the directory root with `pytest`. This will also generate a coverage report. 
+Please be sure to write tests to cover any new code.
+
+The documentation can be built from within the `docs` directory. 
+It will use any `.rst` files found within the `source` subfolder to generate doc pages. 
+If any new pages are added, you will need to also update `index.rst` so they will show up in the generated HTML.
