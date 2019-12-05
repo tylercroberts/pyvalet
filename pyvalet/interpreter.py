@@ -57,7 +57,7 @@ class BaseInterpreter(object):
             self.logger.debug(f"Finished preparing request to: {self.url}")
 
     @staticmethod
-    def _pandafy_response(response: str, skiprows: int = 0) -> pd.DataFrame:
+    def _pandafy_response(response: str, skiprows: int = 0,) -> pd.DataFrame:
         sio = StringIO(response)
         df = pd.read_csv(sio, skiprows=skiprows)
         return df
@@ -284,7 +284,7 @@ class ValetInterpreter(BaseInterpreter):
             `recent_months`, `recent_years`,
 
         Returns:
-            (pd.Series, pd.DataFrame)
+            (pd.DataFrame, pd.DataFrame)
 
             The first output contains details about the series.
             The second contains the observations themselves
@@ -318,17 +318,21 @@ class ValetInterpreter(BaseInterpreter):
             return df
 
     @staticmethod
-    def _parse_group_observations(response: requests.Response):
+    def _parse_group_observations(response: requests.Response) -> (str, str):
         # TODO: Should really do some more splitting to get the details for the group & all series to be consistent
-        splits = response.text.split("OBSERVATIONS")
-        return splits[1]
+        split1 = response.text.split('\n"SERIES"')
+        of_interest = split1[1]
+        split2 = of_interest.split("OBSERVATIONS")
+        # Remove the unnecessary line at the end of the first split, return both csv strings.
+        return "".join(split2[0].split("\n\n")[:-1]), split2[1]
 
     def _get_group_observations(self, group: str, response_format: str='csv', **kwargs):
         # Make sure that the series exists before bothering to send request.
         if group in self.groups_list['name'].unique():
             response = self._get_observations(f"group/{group}", response_format=response_format, **kwargs)
-            cleaned = self._parse_group_observations(response)
-            df = self._pandafy_response(cleaned, skiprows=0)  # TODO: This will not work with comma sep series.
+            series_str, obs_str = self._parse_group_observations(response)
+            df_series = self._pandafy_response(series_str, skiprows=0)
+            df = self._pandafy_response(obs_str, skiprows=0)
             if self.logger is not None:
                 self.logger.debug(f"The {group} group has {df.shape[0]} observations")
         else:
@@ -337,9 +341,9 @@ class ValetInterpreter(BaseInterpreter):
             raise GroupException("The series passed does not lead to a Valet endpoint, "
                                  "check your spelling and try again.")
 
-        return df
+        return df_series, df
 
-    def get_group_observations(self, group: str, response_format: str='csv', **kwargs):
+    def get_group_observations(self, group: str, response_format: str = 'csv', **kwargs):
         """
         Interface to pull observations for all series in a group.
         Performs another query to ensure the group exists as an endpoint on Valet
@@ -350,7 +354,7 @@ class ValetInterpreter(BaseInterpreter):
             **kwargs:
 
         Returns:
-            (pd.DataFrame)
+            (pd.DataFrame, pd.DataFrame)
         """
         if response_format != 'csv':
             if self.logger is not None:
@@ -362,9 +366,9 @@ class ValetInterpreter(BaseInterpreter):
                 self.list_groups(response_format='csv')
                 self._reset_url()
 
-            df = self._get_group_observations(group, response_format=response_format, **kwargs)
+            df_series, df = self._get_group_observations(group, response_format=response_format, **kwargs)
             self._reset_url()
-            return df
+            return df_series, df
 
     def _get_fx_rss(self, endpoint):
 
