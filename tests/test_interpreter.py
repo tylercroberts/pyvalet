@@ -99,11 +99,12 @@ def test_observations():
     # Time it so we can test that caching is working correctly.
     # Series Lists
     series_obs_start = time.time()
-    df = vi.get_series_observations("FXUSDCAD", response_format='csv', end_date='2018-12-01')
+    df_series, df = vi.get_series_observations("FXUSDCAD", response_format='csv', end_date='2018-12-01')
     series_obs_time = time.time() - series_obs_start
+    assert isinstance(df_series, pd.Series)
     assert isinstance(df, pd.DataFrame)
     series_obs_start2 = time.time()
-    df = vi.get_series_observations("FXUSDCAD", response_format='csv', end_date='2018-12-01')
+    df_series, df = vi.get_series_observations("FXUSDCAD", response_format='csv', end_date='2018-12-01')
     series_obs_time2 = time.time() - series_obs_start2
     assert series_obs_time2 < series_obs_time
 

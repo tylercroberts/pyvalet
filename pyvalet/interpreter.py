@@ -179,11 +179,13 @@ class ValetInterpreter(BaseInterpreter):
         if series in self.series_list['name'].unique():
             response = self._get_observations(series, response_format=response_format, **kwargs)
             df = self._pandafy_response(response, skiprows=4)  # TODO: This will not work with comma sep series.
+            df_series = df.iloc[0]
+            df = df.iloc[3:]
         else:
             raise SeriesException("The series passed does not lead to a Valet endpoint, "
                                   "check your spelling and try again.")
 
-        return df
+        return df_series, df
 
     def get_series_observations(self, series, response_format='csv', **kwargs):
         """
