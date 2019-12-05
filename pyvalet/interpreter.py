@@ -8,6 +8,7 @@ from .exceptions import *
 
 class BaseInterpreter(object):
     def __init__(self):
+        # These two attributes are the used to as the basis for all queries made to the Interpreter.
         self.base_url = ''
         self.url = self.base_url
 
@@ -71,6 +72,14 @@ class ValetInterpreter(BaseInterpreter):
         return response
 
     def list_series(self, response_format='csv'):
+        """
+
+        Args:
+            response_format (str): Currently only 'csv' is supported, json and xml potentially in the future.
+
+        Returns:
+
+        """
         if self.series_list is not None:
             return self.series_list
         else:
@@ -84,6 +93,14 @@ class ValetInterpreter(BaseInterpreter):
                 return df
 
     def list_groups(self, response_format='csv'):
+        """
+
+        Args:
+            response_format (str): Currently only 'csv' is supported, json and xml potentially in the future.
+
+        Returns:
+
+        """
         if self.groups_list is not None:
             return self.groups_list
         else:
@@ -96,58 +113,65 @@ class ValetInterpreter(BaseInterpreter):
                 self.groups_list = df
                 return df
 
+    def _get_series_detail(self, series, response_format='csv'):
+        if series in self.series_list['name'].unique():
+            response = self._get_details('groups', series, response_format=response_format)
+            df = self._pandafy_response(response, skiprows=4)
+        else:
+            raise SeriesException("The series passed does not lead to a Valet endpoint, "
+                                  "check your spelling and try again.")
+        return df
+
     def get_series_detail(self, series, response_format='csv'):
+        """
+
+        Args:
+            series (str):
+            response_format (str): Currently only 'csv' is supported, json and xml potentially in the future.
+
+        Returns:
+
+        """
         if response_format != 'csv':
             raise NotImplementedError
         else:
-            if self.series_list is not None:
-                # If we've already cached it anyways, make sure that the series exists before bothering to send request.
-                if series in self.series_list['name'].unique():
-                    response = self._get_details('series', series, response_format=response_format)
-                    df = self._pandafy_response(response, skiprows=4)
-                else:
-                    raise SeriesException("The series passed does not lead to a Valet endpoint, "
-                                          "check your spelling and try again.")
+            if self.series_list is None:
+                self.list_series(response_format=response_format)
 
-            else:
-                self.list_series(response_format='csv')
-                if series in self.series_list['name'].unique():
-                    response = self._get_details('series', series, response_format=response_format)
-                    df = self._pandafy_response(response, skiprows=4)
-                else:
-                    raise SeriesException("The series passed does not lead to a Valet endpoint, "
-                                          "check your spelling and try again.")
+            df = self._get_series_detail(series, response_format=response_format)
 
             self._reset_url()
             return df
 
+    def _get_group_detail(self, group, response_format='csv'):
+        if group in self.groups_list['name'].unique():
+            response = self._get_details('groups', group, response_format=response_format)
+            df = self._pandafy_response(response, skiprows=4)
+            df_group = df.iloc[0]
+            df_series = df.iloc[3:]
+        else:
+            raise GroupException("The series passed does not lead to a Valet endpoint, "
+                                 "check your spelling and try again.")
+        return df_group, df_series
+
     def get_group_detail(self, group, response_format='csv'):
+        """
+        Interface for a user to get details about a group.
+        Performs another query to ensure that the group actually exists.
+        Args:
+            group (str): Comes from `name` column of the `.groups_list` attribute.
+            response_format (str): Currently only 'csv' is supported, json and xml potentially in the future.
+
+        Returns:
+
+        """
         if response_format != 'csv':
             raise NotImplementedError
         else:
-            if self.groups_list is not None:
-                # If we've already cached it anyways, make sure that the series exists before bothering to send request.
-                if group in self.groups_list['name'].unique():
-                    response = self._get_details('groups', group, response_format=response_format)
-                    df = self._pandafy_response(response, skiprows=4)
-
-                    df_group = df.iloc[0]
-                    df_series = df.iloc[3:]
-                else:
-                    raise GroupException("The series passed does not lead to a Valet endpoint, "
-                                     "check your spelling and try again.")
-
-            else:
+            if self.groups_list is None:
                 self.list_groups(response_format='csv')
-                if group in self.groups_list['name'].unique():
-                    response = self._get_details('groups', group, response_format=response_format)
-                    df = self._pandafy_response(response, skiprows=4)
-                    df_group = df.iloc[0]
-                    df_series = df.iloc[3:]
-                else:
-                    raise GroupException("The series passed does not lead to a Valet endpoint, "
-                                     "check your spelling and try again.")
 
+            df_group, df_series = self._get_group_detail(group, response_format='csv')
             self._reset_url()
             return df_group, df_series
 
@@ -156,7 +180,7 @@ class ValetInterpreter(BaseInterpreter):
         # TODO: Add support for series as comma separated lists.
         Args:
             series (str):
-            response_format (str):
+            response_format (str): Currently only 'csv' is supported, json and xml potentially in the future.
             **kwargs: Key word arguments can include; `start_date`, `end_date`, `recent`, `recent_weeks`, `recent_days`,
             `recent_months`, `recent_years`,
 
