@@ -78,7 +78,7 @@ def test_details():
     df_group, df_series = vi.get_group_detail("FX_RATES_DAILY", response_format='csv')
     group_detail_time = time.time() - group_detail_start
     # Something weird going on here where the dataframes are not instances of dataframes even though they are.
-    assert isinstance(df_group, pd.DataFrame)
+    assert isinstance(df_group, pd.Series)
     assert isinstance(df_series, pd.DataFrame)
     group_detail_start2 = time.time()
     df_group, df_series = vi.get_group_detail("FX_RATES_DAILY", response_format='csv')
