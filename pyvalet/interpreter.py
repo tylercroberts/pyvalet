@@ -3,6 +3,7 @@ import requests
 from pathlib import Path
 from typing import Dict, Iterable, List, Tuple
 import pandas as pd
+from .exceptions import *
 
 
 class BaseInterpreter(object):
@@ -16,13 +17,22 @@ class BaseInterpreter(object):
     def _set_endpoint(self, endpoint: str):
         self.url = f"{self.url}/{endpoint}"
 
-    def _prepare_requests(self, *args):
+    def _set_query(self, query: str):
+        self.url = f"{self.url}?{query}"
+
+    def _prepare_requests(self, *args, **kwargs):
+        """All args are taken to be part of the endpoint, and all kwargs are taken to be the query."""
         for arg in args:
             if isinstance(arg, str):
                 self._set_endpoint(arg)
             else:
                 self._reset_url()
                 raise ValueError('Arguments to prepare_requests must be a string')
+
+        query_str = ""
+        for k, v in kwargs.items():
+            query_str += f"{k}={v}&"
+        self._set_query(query_str)
 
     @staticmethod
     def _pandafy_response(response: requests.Response, skiprows: int = 0) -> pd.DataFrame:
@@ -51,6 +61,12 @@ class ValetInterpreter(BaseInterpreter):
 
     def _get_details(self, detail_type, series, response_format='csv'):
         self._prepare_requests(detail_type, series, response_format)
+        response = requests.get(self.url)
+        return response
+
+    def _get_observations(self, series, response_format='csv', **kwargs):
+        # response_format must be positional because of how _prepare_requests works.
+        self._prepare_requests('observations', series, response_format, **kwargs)
         response = requests.get(self.url)
         return response
 
@@ -90,13 +106,17 @@ class ValetInterpreter(BaseInterpreter):
                     response = self._get_details('series', series, response_format=response_format)
                     df = self._pandafy_response(response, skiprows=4)
                 else:
-                    raise ValueError("The series passed does not lead to a Valet endpoint, "
-                                     "check your spelling and try again.")
+                    raise SeriesException("The series passed does not lead to a Valet endpoint, "
+                                          "check your spelling and try again.")
 
             else:
                 self.list_series(response_format='csv')
-                response = self._get_details('series', series, response_format=response_format)
-                df = self._pandafy_response(response, skiprows=4)
+                if series in self.series_list['name'].unique():
+                    response = self._get_details('series', series, response_format=response_format)
+                    df = self._pandafy_response(response, skiprows=4)
+                else:
+                    raise SeriesException("The series passed does not lead to a Valet endpoint, "
+                                          "check your spelling and try again.")
 
             self._reset_url()
             return df
@@ -114,17 +134,68 @@ class ValetInterpreter(BaseInterpreter):
                     df_group = df.iloc[0]
                     df_series = df.iloc[3:]
                 else:
-                    raise ValueError("The series passed does not lead to a Valet endpoint, "
+                    raise GroupException("The series passed does not lead to a Valet endpoint, "
                                      "check your spelling and try again.")
 
             else:
                 self.list_groups(response_format='csv')
-                response = self._get_details('groups', group, response_format=response_format)
-                df = self._pandafy_response(response, skiprows=4)
-                df_group = df.iloc[0]
-                df_series = df.iloc[3:]
+                if group in self.groups_list['name'].unique():
+                    response = self._get_details('groups', group, response_format=response_format)
+                    df = self._pandafy_response(response, skiprows=4)
+                    df_group = df.iloc[0]
+                    df_series = df.iloc[3:]
+                else:
+                    raise GroupException("The series passed does not lead to a Valet endpoint, "
+                                     "check your spelling and try again.")
 
             self._reset_url()
             return df_group, df_series
 
+    def get_series_observations(self, series, response_format='csv', **kwargs):
+        """
+        # TODO: Add support for series as comma separated lists.
+        Args:
+            series (str):
+            response_format (str):
+            **kwargs: Key word arguments can include; `start_date`, `end_date`, `recent`, `recent_weeks`, `recent_days`,
+            `recent_months`, `recent_years`,
 
+        Returns:
+
+            Terms and Conditions:
+                url: The url to the terms and conditions for using content produced by the Bank of Canada
+            Series Detail:
+                id: The id of the specific series
+                    label: The label of the series
+                    description: The description of the series
+                    dimension: The dimension for this series e.g. date, category, etc.
+                        key: Short name for the dimension
+                        name: Name for the dimension
+            Observations:
+                dimension: The dimension of the observation. Short key is used to define the field.
+                value: The value of the observation
+
+        """
+        if response_format != 'csv':
+            raise NotImplementedError
+        else:
+            if self.series_list is not None:
+                # Make sure that the series exists before bothering to send request.
+                if series in self.series_list['name'].unique():
+                    response = self._get_observations(series, response_format=response_format, **kwargs)
+                    df = self._pandafy_response(response, skiprows=4)  # TODO: This will not work with comma sep series.
+                else:
+                    raise SeriesException("The series passed does not lead to a Valet endpoint, "
+                                          "check your spelling and try again.")
+
+            else:
+                self.list_series(response_format='csv')
+                # Check against the series list we just pulled to make sure that the series exists as an endpoint.
+                if series in self.series_list['name'].unique():
+                    response = self._get_observations(series, response_format=response_format, **kwargs)
+                    df = self._pandafy_response(response, skiprows=4)
+                else:
+                    raise SeriesException("The series passed does not lead to a Valet endpoint, "
+                                     "check your spelling and try again.")
+            self._reset_url()
+            return df

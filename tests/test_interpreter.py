@@ -77,6 +77,7 @@ def test_details():
     group_detail_start = time.time()
     df_group, df_series = vi.get_group_detail("FX_RATES_DAILY", response_format='csv')
     group_detail_time = time.time() - group_detail_start
+    # Something weird going on here where the dataframes are not instances of dataframes even though they are.
     assert isinstance(df_group, pd.DataFrame)
     assert isinstance(df_series, pd.DataFrame)
     group_detail_start2 = time.time()
@@ -84,4 +85,25 @@ def test_details():
     group_detail_time2 = time.time() - group_detail_start2
     assert group_detail_time2 < group_detail_time
 
+
+def test_observations():
+
+    vi = ValetInterpreter()
+
+    # Check that the json/xml formats return correct error
+    with pytest.raises(NotImplementedError):
+        vi.get_series_observations('FXUSDCAD', response_format='json', end_date='2018-12-01')
+    # with pytest.raises(NotImplementedError):
+    #     vi.get_series_observations("FX_RATES_DAILY", response_format='json', end_date='2018-12-01')
+
+    # Time it so we can test that caching is working correctly.
+    # Series Lists
+    series_obs_start = time.time()
+    df = vi.get_series_observations("FXUSDCAD", response_format='csv', end_date='2018-12-01')
+    series_obs_time = time.time() - series_obs_start
+    assert isinstance(df, pd.DataFrame)
+    series_obs_start2 = time.time()
+    df = vi.get_series_observations("FXUSDCAD", response_format='csv', end_date='2018-12-01')
+    series_obs_time2 = time.time() - series_obs_start2
+    assert series_obs_time2 < series_obs_time
 
