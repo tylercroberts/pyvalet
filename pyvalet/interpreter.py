@@ -189,7 +189,7 @@ class ValetInterpreter(BaseInterpreter):
 
     def get_series_observations(self, series, response_format='csv', **kwargs):
         """
-        # TODO: Add support for series as comma separated lists.
+        # TODO: Add support for series as comma separated lists, as allowed by the API.
         Args:
             series (str):
             response_format (str): Currently only 'csv' is supported, json and xml potentially in the future.

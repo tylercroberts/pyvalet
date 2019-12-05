@@ -1,7 +1,7 @@
 import time
 import pytest
 import pandas as pd
-from pyvalet import ValetInterpreter
+from pyvalet import ValetInterpreter, SeriesException, GroupException
 
 
 def test_endpoints():
@@ -30,28 +30,17 @@ def test_lists():
 
     # Time it so we can test that caching is working correctly.
     # Series Lists
-    series_list_start = time.time()
     df = vi.list_series(response_format='csv')
-    series_list_time = time.time() - series_list_start
     assert isinstance(df, pd.DataFrame)
-    series_list_start2 = time.time()
     df = vi.list_series(response_format='csv')
-    series_list_time2 = time.time() - series_list_start2
-    assert series_list_time2 < series_list_time
 
     # Group Lists
-    groups_list_start = time.time()
     df = vi.list_groups(response_format='csv')
-    groups_list_time = time.time() - groups_list_start
     assert isinstance(df, pd.DataFrame)
-    groups_list_start2 = time.time()
     df = vi.list_groups(response_format='csv')
-    groups_list_time2 = time.time() - groups_list_start2
-    assert groups_list_time2 < groups_list_time
 
 
 def test_details():
-
     # TODO: Here we just test a sample of handcoded endpoints, may want to look at a broader selection.
 
     vi = ValetInterpreter()
@@ -62,32 +51,28 @@ def test_details():
     with pytest.raises(NotImplementedError):
         vi.get_group_detail("FX_RATES_DAILY", response_format='json')
 
-    # Time it so we can test that caching is working correctly.
-    # Series Lists
-    series_detail_start = time.time()
+    # Series Detail
     df = vi.get_series_detail("FXUSDCAD", response_format='csv')
-    series_detail_time = time.time() - series_detail_start
     assert isinstance(df, pd.DataFrame)
-    series_detail_start2 = time.time()
     df = vi.get_series_detail("FXUSDCAD", response_format='csv')
-    series_detail_time2 = time.time() - series_detail_start2
-    assert series_detail_time2 < series_detail_time
 
-    # Group Lists
-    group_detail_start = time.time()
+    # Group Detail
     df_group, df_series = vi.get_group_detail("FX_RATES_DAILY", response_format='csv')
-    group_detail_time = time.time() - group_detail_start
     # Something weird going on here where the dataframes are not instances of dataframes even though they are.
     assert isinstance(df_group, pd.Series)
     assert isinstance(df_series, pd.DataFrame)
-    group_detail_start2 = time.time()
+    # Need to call it again, to check the caching
     df_group, df_series = vi.get_group_detail("FX_RATES_DAILY", response_format='csv')
-    group_detail_time2 = time.time() - group_detail_start2
-    assert group_detail_time2 < group_detail_time
+    with pytest.raises(SeriesException):
+        # Test with a non-correct series or group name:
+        df = vi.get_series_detail("NOTCORRECT", response_format='csv')
+    with pytest.raises(GroupException):
+        df = vi.get_group_detail("NOTCORRECT", response_format='csv')
+
+
 
 
 def test_observations():
-
     vi = ValetInterpreter()
 
     # Check that the json/xml formats return correct error
@@ -96,15 +81,18 @@ def test_observations():
     # with pytest.raises(NotImplementedError):
     #     vi.get_series_observations("FX_RATES_DAILY", response_format='json', end_date='2018-12-01')
 
-    # Time it so we can test that caching is working correctly.
     # Series Lists
-    series_obs_start = time.time()
     df_series, df = vi.get_series_observations("FXUSDCAD", response_format='csv', end_date='2018-12-01')
-    series_obs_time = time.time() - series_obs_start
     assert isinstance(df_series, pd.Series)
     assert isinstance(df, pd.DataFrame)
-    series_obs_start2 = time.time()
     df_series, df = vi.get_series_observations("FXUSDCAD", response_format='csv', end_date='2018-12-01')
-    series_obs_time2 = time.time() - series_obs_start2
-    assert series_obs_time2 < series_obs_time
+
+    # Try an incorrect series name
+    with pytest.raises(SeriesException):
+        # Test with a non-correct series or group name:
+        df = vi.get_series_observations("NOTCORRECT", response_format='csv')
+
+    # Try without any kwargs:
+    df_series, df = vi.get_series_observations("FXUSDCAD", response_format='csv')
+
 
