@@ -115,21 +115,17 @@ class ValetInterpreter(BaseInterpreter):
         if self.series_list is not None:
             return self.series_list
         else:
+            response = self._get_lists('series', response_format=response_format)
+            self._reset_url()
             if response_format == 'csv':
-                response = self._get_lists('series', response_format=response_format)
                 df = self._pandafy_response(response.text, skiprows=4)
                 if self.logger is not None:
                     self.logger.debug(f"There are {df.shape[0]} series in this list.")
-                self._reset_url()
                 self.series_list = df
                 return df
             elif response_format == 'json':
-                response = self._get_lists('series', response_format=response_format)
-                self._reset_url()
                 return response.text
             elif response_format == 'xml':
-                response = self._get_lists('series', response_format=response_format)
-                self._reset_url()
                 return response.text
             else:
                 if self.logger is not None:
@@ -151,21 +147,17 @@ class ValetInterpreter(BaseInterpreter):
         if self.groups_list is not None:
             return self.groups_list
         else:
+            response = self._get_lists('groups', response_format=response_format)
+            self._reset_url()
             if response_format == 'csv':
-                response = self._get_lists('groups', response_format=response_format)
                 df = self._pandafy_response(response.text, skiprows=4)
                 if self.logger is not None:
                     self.logger.debug(f"There are {df.shape[0]} groups in this list.")
-                self._reset_url()
                 self.groups_list = df
                 return df
             elif response_format == 'json':
-                response = self._get_lists('groups', response_format=response_format)
-                self._reset_url()
                 return response.text
             elif response_format == 'xml':
-                response = self._get_lists('groups', response_format=response_format)
-                self._reset_url()
                 return response.text
             else:
                 if self.logger is not None:
@@ -198,18 +190,15 @@ class ValetInterpreter(BaseInterpreter):
         Returns:
             (pd.DataFrame) with columns: name, label, description
         """
+        response = self._get_series_detail(series, response_format=response_format)
+        self._reset_url()
+
         if response_format == 'csv':
-            response = self._get_series_detail(series, response_format=response_format)
             df = self._pandafy_response(response.text, skiprows=4)
-            self._reset_url()
             return df
         elif response_format == 'json':
-            response = self._get_series_detail(series, response_format=response_format)
-            self._reset_url()
             return response.text
         elif response_format == 'xml':
-            response = self._get_series_detail(series, response_format=response_format)
-            self._reset_url()
             return response.text
         else:
             if self.logger is not None:
