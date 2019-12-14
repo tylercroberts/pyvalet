@@ -243,9 +243,10 @@ class ValetInterpreter(BaseInterpreter):
         Returns:
             (pd.Series, pd.DataFrame) Both outputs have 3 columns: name, label, description.
         """
+        response = self._get_group_detail(group, response_format=response_format)
+        self._reset_url()
+
         if response_format == 'csv':
-            response = self._get_group_detail(group, response_format='csv')
-            self._reset_url()
             df = self._pandafy_response(response.text, skiprows=4)
             df_group = df.iloc[0]
             df_series = df.iloc[3:]
@@ -254,13 +255,9 @@ class ValetInterpreter(BaseInterpreter):
             return df_group, df_series
 
         elif response_format == 'json':
-            response = self._get_group_detail(group, response_format=response_format)
-            self._reset_url()
             return response.text
 
         elif response_format == 'xml':
-            response = self._get_group_detail(group, response_format=response_format)
-            self._reset_url()
             return response.text
         else:
             if self.logger is not None:
@@ -269,6 +266,10 @@ class ValetInterpreter(BaseInterpreter):
             raise NotImplementedError(f"{response_format} not yet supported")
 
     def _get_series_observations(self, series, response_format='csv', **kwargs):
+        if self.series_list is None:
+            self.list_series(response_format='csv')
+            self._reset_url()
+
         all_series = list(self.series_list['name'].unique())
 
         # Make sure that the series exists before bothering to send request.
@@ -286,21 +287,13 @@ class ValetInterpreter(BaseInterpreter):
                 n_series = 1
             # For passed single string.
             response = self._get_observations(series, response_format=response_format, **kwargs)
-            df = self._pandafy_response(response.text, skiprows=4)  # TODO: This will not work with comma sep series.
-            df_series = df.iloc[0:n_series]
-            df = df.iloc[1+n_series:]
-            headers = df.iloc[0]
-            df = pd.DataFrame(df.values[1:], columns=headers)
-            if self.logger is not None:
-                self.logger.debug(f"The {series} series has {df.shape[0]} observations")
         else:
-
             if self.logger is not None:
                 self.logger.debug(f"The endpoint: {self.url} does not exist in the current Valet series list")
             raise SeriesException("The series passed does not lead to a Valet endpoint, "
                                   "check your spelling and try again.")
 
-        return df_series, df
+        return response, n_series
 
     def get_series_observations(self, series, response_format='csv', **kwargs):
         """
@@ -319,19 +312,27 @@ class ValetInterpreter(BaseInterpreter):
             The first output contains details about the series.
             The second contains the observations themselves
         """
-        if response_format != 'csv':
+        response, n_series = self._get_series_observations(series, response_format=response_format, **kwargs)
+        self._reset_url()
+
+        if response_format == 'csv':
+            df = self._pandafy_response(response.text, skiprows=4)  # TODO: This will not work with comma sep series.
+            df_series = df.iloc[0:n_series]
+            df = df.iloc[1+n_series:]
+            headers = df.iloc[0]
+            df = pd.DataFrame(df.values[1:], columns=headers)
+            if self.logger is not None:
+                self.logger.debug(f"The {series} series has {df.shape[0]} observations")
+            return df, df_series
+        elif response_format == 'json':
+            return response.text
+        elif response_format == 'xml':
+            return response.text
+        else:
             if self.logger is not None:
                 self.logger.debug(f"{response_format} is not yet supported, "
                                   f"please use csv or check for updates on GitHub")
             raise NotImplementedError("JSON and XML not yet supported")
-        else:
-            if self.series_list is None:
-                self.list_series(response_format='csv')
-                self._reset_url()
-
-            df = self._get_series_observations(series, response_format=response_format, **kwargs)
-            self._reset_url()
-            return df
 
     @staticmethod
     def _parse_group_observations(response: requests.Response) -> (str, str):
@@ -343,20 +344,20 @@ class ValetInterpreter(BaseInterpreter):
 
     def _get_group_observations(self, group: str, response_format: str='csv', **kwargs):
         # Make sure that the series exists before bothering to send request.
+        if self.groups_list is None:
+            self.list_groups(response_format='csv')
+            self._reset_url()
+
         if group in self.groups_list['name'].unique():
             response = self._get_observations(f"group/{group}", response_format=response_format, **kwargs)
-            series_str, obs_str = self._parse_group_observations(response)
-            df_series = self._pandafy_response(series_str, skiprows=0)
-            df = self._pandafy_response(obs_str, skiprows=0)
-            if self.logger is not None:
-                self.logger.debug(f"The {group} group has {df.shape[0]} observations")
+
         else:
             if self.logger is not None:
                 self.logger.debug(f"The endpoint: {self.url} does not exist in the current Valet series list")
             raise GroupException("The series passed does not lead to a Valet endpoint, "
                                  "check your spelling and try again.")
 
-        return df_series, df
+        return response
 
     def get_group_observations(self, group: str, response_format: str = 'csv', **kwargs):
         """
@@ -371,22 +372,27 @@ class ValetInterpreter(BaseInterpreter):
         Returns:
             (pd.DataFrame, pd.DataFrame)
         """
-        if response_format != 'csv':
+        response = self._get_group_observations(group, response_format=response_format, **kwargs)
+        self._reset_url()
+
+        if response_format == 'csv':
+            series_str, obs_str = self._parse_group_observations(response)
+            df_series = self._pandafy_response(series_str, skiprows=0)
+            df = self._pandafy_response(obs_str, skiprows=0)
+            if self.logger is not None:
+                self.logger.debug(f"The {group} group has {df.shape[0]} observations")
+            return df_series, df
+        elif response_format == 'json':
+            return response.text
+        elif response_format == 'xml':
+            return response.text
+        else:
             if self.logger is not None:
                 self.logger.debug(f"{response_format} is not yet supported, "
-                                  f"please use csv or check for updates on GitHub")
-            raise NotImplementedError("JSON and XML not yet supported")
-        else:
-            if self.groups_list is None:
-                self.list_groups(response_format='csv')
-                self._reset_url()
-
-            df_series, df = self._get_group_observations(group, response_format=response_format, **kwargs)
-            self._reset_url()
-            return df_series, df
+                                  f"please use csv, json, xml or check for updates on GitHub")
+            raise NotImplementedError(f"{response_format} not yet supported")
 
     def _get_fx_rss(self, endpoint):
-
         # response_format must be positional because of how _prepare_requests works.
         self._prepare_requests('fx_rss', endpoint)
         response = requests.get(self.url)

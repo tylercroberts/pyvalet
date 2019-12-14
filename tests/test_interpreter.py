@@ -104,7 +104,6 @@ def test_details():
 
     logger.info("Passed check for unsupported format")
 
-
     # Series Detail
     df = vi.get_series_detail("FXUSDCAD", response_format='csv')
     assert isinstance(df, pd.DataFrame)
@@ -116,7 +115,6 @@ def test_details():
     assert isinstance(df_series, pd.DataFrame)
     df_group, df_series = vi.get_group_detail("FX_RATES_DAILY", response_format='csv')
     logger.info("Checked that the details are accessible, are cached correctly.")
-
 
     with pytest.raises(SeriesException):
         # Test with a non-correct series or group name:
@@ -130,13 +128,30 @@ def test_details():
 
 def test_observations():
     vi = ValetInterpreter(logger=logger)
-
     # Check that the json/xml formats return correct error
+    response = vi.get_series_observations('FXUSDCAD', response_format='json')
+    assert response[0] == '{'  # Check that the document is json
+    assert isinstance(response, str)
+    response = vi.get_series_observations('FXUSDCAD', response_format='xml')
+    assert isinstance(response, str)
+    assert 'xml' in response[:6]  # Check that the document is xml
+
+    response = vi.get_group_observations('FX_RATES_DAILY', response_format='json')
+    assert response[0] == '{'  # Check that the document is json
+    assert isinstance(response, str)
+    response = vi.get_group_observations('FX_RATES_DAILY', response_format='xml')
+    assert isinstance(response, str)
+    assert 'xml' in response[:6]  # Check that the document is xml
+
+    logger.info("Passed check for json/xml formats")
+
     with pytest.raises(NotImplementedError):
-        vi.get_series_observations('FXUSDCAD', response_format='json', end_date='2018-12-01')
+        vi.get_series_observations('FXUSDCAD', response_format='banana')
     with pytest.raises(NotImplementedError):
-        vi.get_group_observations("FX_RATES_DAILY", response_format='json', end_date='2018-12-01')
-    logger.info("Passed check for unsupported formats")
+        vi.get_group_observations('FX_RATES_DAILY', response_format='banana')
+
+    logger.info("Passed check for unsupported format")
+
 
 
     # Series Lists
