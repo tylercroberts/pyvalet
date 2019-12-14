@@ -38,13 +38,22 @@ def test_endpoints():
 def test_lists():
 
     vi = ValetInterpreter(logger=logger)
-    # Check that the json/xml formats return correct error
-    with pytest.raises(NotImplementedError):
-        vi.list_series(response_format='json')
-    with pytest.raises(NotImplementedError):
-        vi.list_groups(response_format='json')
+    # Check that the json/xml formats return correctly
+    response = vi.list_groups(response_format='json')
+    assert response[0] == '{'  # Check that the document is json
+    assert isinstance(response, str)
+    response = vi.list_groups(response_format='xml')
+    assert isinstance(response, str)
+    assert 'xml' in response[:6]  # Check that the document is xml
 
-    logger.info("Passed check for unsupported formats")
+    response = vi.list_series(response_format='json')
+    assert response[0] == '{'  # Check that the document is json
+    assert isinstance(response, str)
+    response = vi.list_series(response_format='xml')
+    assert isinstance(response, str)
+    assert 'xml' in response[:6]  # Check that the document is xml
+
+    logger.info("Passed check for json and xml formats")
 
     # Series Lists
     df = vi.list_series(response_format='csv')
