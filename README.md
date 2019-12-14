@@ -119,3 +119,5 @@ Please be sure to write tests to cover any new code.
 The documentation can be built from within the `docs` directory. 
 It will use any `.rst` files found within the `source` subfolder to generate doc pages. 
 If any new pages are added, you will need to also update `index.rst` so they will show up in the generated HTML.
+
+Please see [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for more details.

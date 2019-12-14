@@ -10,7 +10,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="pyvalet",
-    version="0.2",
+    version="1.0",
     author='Tyler Roberts',
     author_email='tcroberts@live.ca',
     description="BoC Valet API Wrapper",
@@ -28,9 +28,6 @@ setup(
             "recommonmark==0.5.0",
             "sphinx-autodoc-typehints==1.6.0",
             "sphinx_copybutton==0.2.5",
-            "jupyter_client>=5.1.0, <6.0",
-            "tornado>=4.2, <6.0",
-            "ipykernel>=4.8.1, <5.0",
         ],
         "tests": ["pytest==5.2.1",
                   "pytest-cov==2.8.1",
