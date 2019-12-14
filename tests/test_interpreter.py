@@ -39,13 +39,6 @@ def test_lists():
 
     vi = ValetInterpreter(logger=logger)
     # Check that the json/xml formats return correctly
-    response = vi.list_groups(response_format='json')
-    assert response[0] == '{'  # Check that the document is json
-    assert isinstance(response, str)
-    response = vi.list_groups(response_format='xml')
-    assert isinstance(response, str)
-    assert 'xml' in response[:6]  # Check that the document is xml
-
     response = vi.list_series(response_format='json')
     assert response[0] == '{'  # Check that the document is json
     assert isinstance(response, str)
@@ -53,7 +46,21 @@ def test_lists():
     assert isinstance(response, str)
     assert 'xml' in response[:6]  # Check that the document is xml
 
+    response = vi.list_groups(response_format='json')
+    assert response[0] == '{'  # Check that the document is json
+    assert isinstance(response, str)
+    response = vi.list_groups(response_format='xml')
+    assert isinstance(response, str)
+    assert 'xml' in response[:6]  # Check that the document is xml
+
     logger.info("Passed check for json and xml formats")
+
+    with pytest.raises(NotImplementedError):
+        vi.list_groups(response_format='banana')
+    with pytest.raises(NotImplementedError):
+        vi.list_series(response_format='banana')
+
+    logger.info("Passed check for unsupported format")
 
     # Series Lists
     df = vi.list_series(response_format='csv')
@@ -74,12 +81,29 @@ def test_details():
 
     vi = ValetInterpreter(logger=logger)
     # Check that the json/xml formats return correct error
-    with pytest.raises(NotImplementedError):
-        vi.get_series_detail('FXUSDCAD', response_format='json')
-    with pytest.raises(NotImplementedError):
-        vi.get_group_detail("FX_RATES_DAILY", response_format='json')
+    response = vi.get_series_detail('FXUSDCAD', response_format='json')
+    assert response[0] == '{'  # Check that the document is json
+    assert isinstance(response, str)
+    response = vi.get_series_detail('FXUSDCAD', response_format='xml')
+    assert isinstance(response, str)
+    assert 'xml' in response[:6]  # Check that the document is xml
 
-    logger.info("Passed check for unsupported formats")
+    response = vi.get_group_detail('FX_RATES_DAILY', response_format='json')
+    assert response[0] == '{'  # Check that the document is json
+    assert isinstance(response, str)
+    response = vi.get_group_detail('FX_RATES_DAILY', response_format='xml')
+    assert isinstance(response, str)
+    assert 'xml' in response[:6]  # Check that the document is xml
+
+    logger.info("Passed check for json/xml formats")
+
+    with pytest.raises(NotImplementedError):
+        vi.get_series_detail('FXUSDCAD', response_format='banana')
+    with pytest.raises(NotImplementedError):
+        vi.get_group_detail('FX_RATES_DAILY', response_format='banana')
+
+    logger.info("Passed check for unsupported format")
+
 
     # Series Detail
     df = vi.get_series_detail("FXUSDCAD", response_format='csv')
