@@ -1,5 +1,5 @@
 import json
-import pandas
+import pandas as pd
 from io import StringIO
 from loguru import logger
 
@@ -34,5 +34,5 @@ class ResponseSet(object):
 
     def _to_csv(self):
         sio = StringIO(self._response.text)
-        df = pd.read_csv(sio, skiprows=skiprows)
+        df = pd.read_csv(sio, skiprows=self._skiprows)
         return df
