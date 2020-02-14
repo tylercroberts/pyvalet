@@ -1,7 +1,6 @@
 import json
 import pandas
 from io import StringIO
-
 from loguru import logger
 
 # Hard coding is bad but it will work barring any significant report changes.
@@ -34,6 +33,6 @@ class ResponseSet(object):
         return self._response.text
 
     def _to_csv(self):
-        sio = StringIO(self._response)
+        sio = StringIO(self._response.text)
         df = pd.read_csv(sio, skiprows=skiprows)
         return df
