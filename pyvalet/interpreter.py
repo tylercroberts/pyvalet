@@ -177,7 +177,7 @@ class ValetInterpreter(BaseInterpreter):
             df = self._pandafy_response(response.text, skiprows=4)
             return df
         elif response_format == 'json':
-            return response.text
+            return json.loads(response.text)
         elif response_format == 'xml':
             return response.text
         else:
@@ -224,7 +224,7 @@ class ValetInterpreter(BaseInterpreter):
             return df_group, df_series
 
         elif response_format == 'json':
-            return response.text
+            return json.loads(response.text)
 
         elif response_format == 'xml':
             return response.text
@@ -294,7 +294,7 @@ class ValetInterpreter(BaseInterpreter):
                 self.logger.debug(f"The {series} series has {df.shape[0]} observations")
             return df, df_series
         elif response_format == 'json':
-            return response.text
+            return json.loads(response.text)
         elif response_format == 'xml':
             return response.text
         else:
@@ -352,7 +352,7 @@ class ValetInterpreter(BaseInterpreter):
                 self.logger.debug(f"The {group} group has {df.shape[0]} observations")
             return df_series, df
         elif response_format == 'json':
-            return response.text
+            return json.loads(response.text)
         elif response_format == 'xml':
             return response.text
         else:
