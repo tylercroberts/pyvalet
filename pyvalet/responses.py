@@ -27,7 +27,7 @@ class ResponseSet(object):
             logger.error(f"Something went wrong in formatting the response! {e}")
 
     def _to_json(self):
-        return json.loads(response.text)
+        return json.loads(self._response.text)
 
     def _to_xml(self):
         return self._response.text

@@ -7,6 +7,7 @@ TODO: Should be relatively simply to use json library to turn json string to dic
 """
 
 import requests
+import json
 from io import StringIO
 from pathlib import Path
 from typing import Dict, Iterable, List, Tuple
