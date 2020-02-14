@@ -21,7 +21,7 @@ class ResponseSet(object):
     
     def values(self):
         try:
-            return self._func(self._response)
+            return self._func()
         except Exception as e:
             logger.error(f"Something went wrong in formatting the response! {e}")
 

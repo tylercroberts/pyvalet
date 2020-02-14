@@ -14,6 +14,7 @@ def test_interpreter():
 def test_endpoints():
     vi = ValetInterpreter(logger=logger)
     # Test that the list endpoints are still valid. This may make debugging easier if they change, or become outdated.
+    # This isnt a great test because it doesnt use the interface.
     response = vi._get_lists('series', response_format='csv')
     assert response.status_code == 200
     vi._reset_url()
@@ -40,15 +41,13 @@ def test_lists():
     vi = ValetInterpreter(logger=logger)
     # Check that the json/xml formats return correctly
     response = vi.list_series(response_format='json')
-    assert response[0] == '{'  # Check that the document is json
-    assert isinstance(response, str)
+    assert isinstance(response, dict)
     response = vi.list_series(response_format='xml')
     assert isinstance(response, str)
     assert 'xml' in response[:6]  # Check that the document is xml
 
     response = vi.list_groups(response_format='json')
-    assert response[0] == '{'  # Check that the document is json
-    assert isinstance(response, str)
+    assert isinstance(response, dict)
     response = vi.list_groups(response_format='xml')
     assert isinstance(response, str)
     assert 'xml' in response[:6]  # Check that the document is xml
@@ -82,15 +81,13 @@ def test_details():
     vi = ValetInterpreter(logger=logger)
     # Check that the json/xml formats return correct error
     response = vi.get_series_detail('FXUSDCAD', response_format='json')
-    assert response[0] == '{'  # Check that the document is json
-    assert isinstance(response, str)
+    assert isinstance(response, dict)
     response = vi.get_series_detail('FXUSDCAD', response_format='xml')
     assert isinstance(response, str)
     assert 'xml' in response[:6]  # Check that the document is xml
 
     response = vi.get_group_detail('FX_RATES_DAILY', response_format='json')
-    assert response[0] == '{'  # Check that the document is json
-    assert isinstance(response, str)
+    assert isinstance(response, dict)
     response = vi.get_group_detail('FX_RATES_DAILY', response_format='xml')
     assert isinstance(response, str)
     assert 'xml' in response[:6]  # Check that the document is xml
@@ -130,15 +127,13 @@ def test_observations():
     vi = ValetInterpreter(logger=logger)
     # Check that the json/xml formats return correct error
     response = vi.get_series_observations('FXUSDCAD', response_format='json')
-    assert response[0] == '{'  # Check that the document is json
-    assert isinstance(response, str)
+    assert isinstance(response, dict)
     response = vi.get_series_observations('FXUSDCAD', response_format='xml')
     assert isinstance(response, str)
     assert 'xml' in response[:6]  # Check that the document is xml
 
     response = vi.get_group_observations('FX_RATES_DAILY', response_format='json')
-    assert response[0] == '{'  # Check that the document is json
-    assert isinstance(response, str)
+    assert isinstance(response, dict)
     response = vi.get_group_observations('FX_RATES_DAILY', response_format='xml')
     assert isinstance(response, str)
     assert 'xml' in response[:6]  # Check that the document is xml
