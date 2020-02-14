@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Tuple
 import pandas as pd
 from .exceptions import *
+from .responses import ResponseSet
 
 
 class BaseInterpreter(object):
@@ -149,21 +150,11 @@ class ValetInterpreter(BaseInterpreter):
         else:
             response = self._get_lists('groups', response_format=response_format)
             self._reset_url()
+            rs = ResponseSet(response, response_format=response_format, kind='list')
+            out = rs.values()
             if response_format == 'csv':
-                df = self._pandafy_response(response.text, skiprows=4)
-                if self.logger is not None:
-                    self.logger.debug(f"There are {df.shape[0]} groups in this list.")
-                self.groups_list = df
-                return df
-            elif response_format == 'json':
-                return response.text
-            elif response_format == 'xml':
-                return response.text
-            else:
-                if self.logger is not None:
-                    self.logger.debug(f"{response_format} is not yet supported, "
-                                      f"please use csv, json, xml, or check for updates on GitHub")
-                raise NotImplementedError(f"{response_format} not yet supported")
+                self.groups_list = out
+            return out
 
     def _get_series_detail(self, series, response_format='csv'):
         if self.series_list is None:
