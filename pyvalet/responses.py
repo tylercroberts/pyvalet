@@ -19,7 +19,7 @@ class ResponseSet(object):
         self._func = method_map[response_format]
         self._skiprows = SKIPROWS_MAP[kind]
     
-    def values():
+    def values(self):
         try:
             return self._func(self._response)
         except Exception as e:
