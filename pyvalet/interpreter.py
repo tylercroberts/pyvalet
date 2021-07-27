@@ -187,7 +187,6 @@ class ValetInterpreter(BaseInterpreter):
 
         or
         Group Details: The details for the requested series group
-
             name: The id of the requested group
             label: The title of the requested group
             description: The description of the requested group
