@@ -200,6 +200,17 @@ def test_observations():
 
     logger.info("Completed tests for observations")
 
+def test_et():
+    vi = ValetInterpreter(logger=logger)
+    js_series = vi.get_series_observations("STATIC_ATABLE_V41690973",response_format='json',recent=1)
+    assert isinstance(js_series, list)
+    logger.info(f"Inflation is now {js_series[0]}")
+
+    js_series = vi.get_series_observations("V80691311",response_format='json',recent=1)
+    assert isinstance(js_series, list)
+    logger.info(f"Prime rate is now {js_series[0]}")
+
+
 
 def test_fx_rss():
     vi = ValetInterpreter(logger=logger)
