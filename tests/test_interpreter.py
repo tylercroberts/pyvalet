@@ -5,6 +5,7 @@ from pyvalet import ValetInterpreter, SeriesException, GroupException
 from loguru import logger
 logger.add('logs/test_logs.log')
 
+timeout = 10
 
 def test_interpreter():
     vi = ValetInterpreter()
@@ -12,7 +13,7 @@ def test_interpreter():
 
 
 def test_endpoints():
-    vi = ValetInterpreter(logger=logger)
+    vi = ValetInterpreter(logger=logger,timeout=timeout)
     # Test that the list endpoints are still valid. This may make debugging easier if they change, or become outdated.
     response = vi._get_lists('series', response_format='csv')
     assert response.status_code == 200
@@ -46,7 +47,7 @@ def test_endpoints():
 
 def test_lists():
 
-    vi = ValetInterpreter(logger=logger)
+    vi = ValetInterpreter(logger=logger,timeout=timeout)
     # Check that the json/xml formats return correct error
     with pytest.raises(NotImplementedError):
         vi.list_series(response_format='xml')
@@ -76,7 +77,7 @@ def test_lists():
 def test_details():
     # TODO: Here we just test a sample of handcoded endpoints, may want to look at a broader selection.
 
-    vi = ValetInterpreter(logger=logger)
+    vi = ValetInterpreter(logger=logger,timeout=timeout)
     # Check that the json/xml formats return correct error
     with pytest.raises(NotImplementedError):
         vi.get_series_detail('FXUSDCAD', response_format='xml')
@@ -118,7 +119,7 @@ def test_details():
 
 
 def test_observations():
-    vi = ValetInterpreter(logger=logger)
+    vi = ValetInterpreter(logger=logger,timeout=timeout)
 
     # Check that the json/xml formats return correct error
     with pytest.raises(NotImplementedError):
@@ -201,10 +202,11 @@ def test_observations():
     logger.info("Completed tests for observations")
 
 def test_et():
-    vi = ValetInterpreter(logger=logger)
+    vi = ValetInterpreter(logger=logger,timeout=0.1)
     js_series = vi.get_series_observations("STATIC_ATABLE_V41690973",response_format='json',recent=1)
     assert isinstance(js_series, list)
     logger.info(f"Inflation is now {js_series[0]}")
+    logger.info("Tested retries on timeout")
 
     js_series = vi.get_series_observations("V80691311",response_format='json',recent=1)
     assert isinstance(js_series, list)
@@ -213,7 +215,7 @@ def test_et():
 
 
 def test_fx_rss():
-    vi = ValetInterpreter(logger=logger)
+    vi = ValetInterpreter(logger=logger,timeout=timeout)
     rss = vi.get_fx_rss('FXUSDCAD')
     assert isinstance(rss, str)
     rss = vi.get_fx_rss('FXUSDCAD')  # Call again to check that caching works.

@@ -10,11 +10,13 @@ from io import StringIO
 from pathlib import Path
 import pandas as pd
 from .exceptions import *
+from requests.exceptions import Timeout
+
 
 
 class BaseInterpreter(object):
 
-    def __init__(self, logger=None):
+    def __init__(self, logger=None, timeout=10):
         """
         In any subclass, base_url should be set to whatever the root URL would be, and self.url will be
         set temporarily to be the same.
@@ -25,6 +27,7 @@ class BaseInterpreter(object):
 
         self.base_url = ''
         self.url = self.base_url
+        self.timeout = timeout
         self._enable_logging(logger)
 
     def _enable_logging(self, logger):
@@ -56,6 +59,27 @@ class BaseInterpreter(object):
         if self.logger is not None:
             self.logger.debug(f"Finished preparing request to: {self.url}")
 
+    def requests_get(self,url):
+        try:
+            response = requests.get(url,timeout=self.timeout)
+            response.raise_for_status()
+            self._reset_url()
+            return response
+        except Timeout:
+            if self.timeout < 1000: # try again
+                self.timeout = self.timeout * 10
+                if self.logger is not None:
+                    self.logger.info(f'Retrying with timeout: {self.timeout}')
+                response = self.requests_get(url)
+                return response
+            elif self.logger is not None:
+                self.logger.error('The request timed out')
+        except Exception as err:
+            if self.logger is not None:
+                self.logger.error(f'Other error occurred: {err}')
+
+        raise BOCException('BOC Exception')
+
     @staticmethod
     def _pandafy_response(response: str, skiprows: int = 0,) -> pd.DataFrame:
         sio = StringIO(response)
@@ -65,12 +89,13 @@ class BaseInterpreter(object):
 
 class ValetInterpreter(BaseInterpreter):
 
-    def __init__(self, logger=None):
+    def __init__(self, logger=None, timeout=10):
         # super doesn't do much in our case.
-        super(ValetInterpreter, self).__init__(logger=logger)
+        super(ValetInterpreter, self).__init__(logger=logger, timeout=timeout )
 
         self.base_url = 'https://www.bankofcanada.ca/valet'
         self.url = self.base_url
+        self.timeout = timeout
 
         # These provide a cached version of results
         #self.series_list = None
@@ -109,7 +134,7 @@ class ValetInterpreter(BaseInterpreter):
                 df = self._pandafy_response(response.text, skiprows=4)
                 if self.logger is not None:
                     self.logger.debug(f"There are {df.shape[0]} series in this list.")
-                self._reset_url()
+                #self._reset_url()
                 self.series_list[response_format] = df
                 return df
             elif response_format == 'json':
@@ -118,7 +143,7 @@ class ValetInterpreter(BaseInterpreter):
                 #print("series_list: ",js)
                 if self.logger is not None:
                     self.logger.debug(f"There are {len(js)} series in this list.")
-                self._reset_url()
+                #self._reset_url()
                 self.series_list[response_format] = js
                 return js
             else:
@@ -149,12 +174,12 @@ class ValetInterpreter(BaseInterpreter):
                 df = self._pandafy_response(response.text, skiprows=4)
                 if self.logger is not None:
                     self.logger.debug(f"There are {df.shape[0]} groups in this list.")
-                self._reset_url()
+                #self._reset_url()
                 self.groups_list[response_format] = df
                 return df
             elif response_format == 'json':
                 response = self._get_lists('groups', response_format=response_format)
-                self._reset_url()
+                #self._reset_url()
                 js = response.json(strict=False)
                 self.groups_list[response_format] = js
                 return js
@@ -169,7 +194,7 @@ class ValetInterpreter(BaseInterpreter):
 
         #/lists/listName/json
         self._prepare_requests('lists', endpoint, response_format)
-        response = requests.get(self.url)
+        response = self.requests_get(self.url)
 
         if self.logger is not None:
             self.logger.debug(f"Query for {endpoint} lists returned code {response.status_code}")
@@ -200,7 +225,7 @@ class ValetInterpreter(BaseInterpreter):
 
 
         self._prepare_requests(detail_type, endpoint, response_format)
-        response = requests.get(self.url)
+        response = self.requests_get(self.url)
 
         if self.logger is not None:
             self.logger.debug(f"Query for {detail_type}/{endpoint} details returned code {response.status_code}")
@@ -212,7 +237,7 @@ class ValetInterpreter(BaseInterpreter):
         #/observations/seriesNames/format?query
         #/observations/group/groupName/format?query
         self._prepare_requests('observations', endpoint, response_format, **kwargs)
-        response = requests.get(self.url)
+        response = self.requests_get(self.url)
 
         if self.logger is not None:
             self.logger.debug(f"Query for {endpoint} observations returned code {response.status_code}")
@@ -271,19 +296,19 @@ class ValetInterpreter(BaseInterpreter):
         if response_format == 'csv':
             if self.series_list[response_format] is None:
                 self.list_series(response_format=response_format)
-                self._reset_url()
+                #self._reset_url()
 
             df = self._get_series_detail(series, response_format=response_format)
-            self._reset_url()
+            #self._reset_url()
             return df
 
         elif response_format == 'json':
             if self.series_list[response_format] is None:
                 self.list_series(response_format=response_format)
-                self._reset_url()
+                #self._reset_url()
 
             js = self._get_series_detail(series, response_format=response_format)
-            self._reset_url()
+            #self._reset_url()
             return js
         else:
             if self.logger is not None:
@@ -361,18 +386,18 @@ class ValetInterpreter(BaseInterpreter):
         if response_format == 'csv':
             if self.groups_list[response_format] is None:
                 self.list_groups(response_format=response_format)
-                self._reset_url()
+                #self._reset_url()
 
             df_group, df_series = self._get_group_detail(group, response_format=response_format)
-            self._reset_url()
+            #self._reset_url()
             return df_group, df_series
         elif response_format == 'json':
             if self.groups_list[response_format] is None:
                 self.list_groups(response_format=response_format)
-                self._reset_url()
+                #self._reset_url()
 
             js_group, js_series = self._get_group_detail(group, response_format=response_format)
-            self._reset_url()
+            #self._reset_url()
             #print("js_group: ",js_group)
             #print("js_series: ", js_series)
             return js_group, js_series
@@ -455,19 +480,19 @@ class ValetInterpreter(BaseInterpreter):
         if response_format == 'csv':
             if self.series_list[response_format] is None:
                 self.list_series(response_format=response_format)
-                self._reset_url()
+                #self._reset_url()
 
             df, _ = self._get_series_observations(series, response_format=response_format, **kwargs)
-            self._reset_url()
+            #self._reset_url()
             #print("df: ",df)
             return df #only getting observations and returning observations df_series
         elif response_format == 'json':
             if self.series_list[response_format] is None:
                 self.list_series(response_format=response_format)
-                self._reset_url()
+                #self._reset_url()
 
             js, _ = self._get_series_observations(series, response_format=response_format, **kwargs)
-            self._reset_url()
+            #self._reset_url()
             #print("js: ",js)
             return js
 
@@ -547,18 +572,18 @@ class ValetInterpreter(BaseInterpreter):
         if response_format == 'csv':
             if self.groups_list[response_format] is None:
                 self.list_groups(response_format='csv')
-                self._reset_url()
+                #self._reset_url()
 
             df_series, df = self._get_group_observations(group, response_format=response_format, **kwargs)
-            self._reset_url()
+            #self._reset_url()
             return df_series, df
         elif response_format == 'json':
             if self.groups_list[response_format] is None:
                 self.list_groups(response_format='json')
-                self._reset_url()
+                #self._reset_url()
 
             js_series, js = self._get_group_observations(group, response_format=response_format, **kwargs)
-            self._reset_url()
+            #self._reset_url()
             return js_series, js
 
         else:
@@ -574,7 +599,7 @@ class ValetInterpreter(BaseInterpreter):
 
         # response_format must be positional because of how _prepare_requests works.
         self._prepare_requests('fx_rss', endpoint)
-        response = requests.get(self.url)
+        response = self.requests_get(self.url)
         if self.logger is not None:
             self.logger.debug(f"Query for {endpoint} observations returned code {response.status_code}")
         return response
@@ -594,7 +619,7 @@ class ValetInterpreter(BaseInterpreter):
         response_format='csv'
         if self.series_list[response_format] is None:
             self.list_series(response_format='csv')
-            self._reset_url()
+            #self._reset_url()
 
         all_series = list(self.series_list[response_format]['name'].unique())
 
@@ -613,7 +638,7 @@ class ValetInterpreter(BaseInterpreter):
             else:
                 n_series = 1
             response = self._get_fx_rss(series)
-            self._reset_url()
+            #self._reset_url()
             return response.text
 
         else:
