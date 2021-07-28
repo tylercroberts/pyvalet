@@ -5,13 +5,12 @@ This module defines the base class, and concrete implementation for our API wrap
 """
 
 import requests
-
+import re
 from io import StringIO
 from pathlib import Path
 import pandas as pd
 from .exceptions import *
-from requests.exceptions import Timeout
-
+from requests.exceptions import Timeout, HTTPError
 
 
 class BaseInterpreter(object):
@@ -60,23 +59,30 @@ class BaseInterpreter(object):
             self.logger.debug(f"Finished preparing request to: {self.url}")
 
     def requests_get(self,url):
+
         try:
             response = requests.get(url,timeout=self.timeout)
             response.raise_for_status()
             self._reset_url()
             return response
-        except Timeout:
-            if self.timeout < 1000: # try again
-                self.timeout = self.timeout * 10
-                if self.logger is not None:
-                    self.logger.info(f'Retrying with timeout: {self.timeout}')
-                response = self.requests_get(url)
-                return response
+
+        except Exception as e:
+            # should be: except Timeout
+            # bug in requests
+            # https://github.com/psf/requests/issues/5430
+            # work-around?
+            if re.search('Read timed out', str(e), re.IGNORECASE):
+                if self.timeout < 1000: # try again
+                    self.timeout = self.timeout * 10
+                    if self.logger is not None:
+                        self.logger.info(f'Retrying with timeout: {self.timeout}')
+                    response = self.requests_get(url)
+                    return response
+                elif self.logger is not None:
+                    self.logger.error(f'Timeout error occurred: {e}')
+                    self.logger.error('The request timed out with timeout: {self.timeout}')
             elif self.logger is not None:
-                self.logger.error('The request timed out')
-        except Exception as err:
-            if self.logger is not None:
-                self.logger.error(f'Other error occurred: {err}')
+                self.logger.error(f'Other error occurred: {e}')
 
         raise BOCException('BOC Exception')
 
@@ -89,18 +95,17 @@ class BaseInterpreter(object):
 
 class ValetInterpreter(BaseInterpreter):
 
-    def __init__(self, logger=None, timeout=10):
+    def __init__(self, logger=None, timeout=10, check=True):
         # super doesn't do much in our case.
         super(ValetInterpreter, self).__init__(logger=logger, timeout=timeout )
 
         self.base_url = 'https://www.bankofcanada.ca/valet'
         self.url = self.base_url
         self.timeout = timeout
+        self.check = check
 
         # These provide a cached version of results
-        #self.series_list = None
-        #self.groups_list = None
-        #needs to be in correct format
+        # need to be in correct format
         self.series_list = {}
         self.groups_list = {}
         self.series_list['csv']=None
@@ -209,7 +214,6 @@ class ValetInterpreter(BaseInterpreter):
             name: The id of the requested series
                 label: The title of the requested series
                 description: The description of the requested series
-
         or
         Group Details: The details for the requested series group
             name: The id of the requested group
@@ -219,11 +223,7 @@ class ValetInterpreter(BaseInterpreter):
                 name: The id of the series
                     label: The title of the series
                     link: The link to the series details
-
-
         '''
-
-
         self._prepare_requests(detail_type, endpoint, response_format)
         response = self.requests_get(self.url)
 
@@ -246,32 +246,28 @@ class ValetInterpreter(BaseInterpreter):
 
 
     def _get_series_detail(self, series, response_format='csv'):
-        if response_format=='csv':
-            if series in self.series_list[response_format]['name'].unique():
+        series_list = [series]
+        if self.check:
+            if response_format == 'csv':
+                series_list = self.series_list[response_format]['name'].unique()
+            elif response_format == 'json':
+                series_list = self.series_list[response_format]['series'].keys()
+
+        if series in series_list:
+            if response_format=='csv':
                 response = self._get_details('series', series, response_format=response_format)
                 df = self._pandafy_response(response.text, skiprows=4)
                 return df
-            else:
-                if self.logger is not None:
-                    self.logger.debug(f"The endpoint: {self.url} does not exist in the current Valet series list")
-                raise SeriesException("The series passed does not lead to a Valet endpoint, "
-                                      "check your spelling and try again.")
 
-        elif response_format=='json':
-            if series in self.series_list[response_format]['series']:
+            elif response_format=='json':
                 response = self._get_details('series', series, response_format=response_format)
                 return response.json(strict=False)
-            else:
-                if self.logger is not None:
-                    self.logger.debug(f"The endpoint: {self.url} does not exist in the current Valet series list")
-                raise SeriesException("The series passed does not lead to a Valet endpoint, "
-                                      "check your spelling and try again.")
-
         else:
             if self.logger is not None:
-                self.logger.debug(f"{response_format} is not yet supported, "
-                                  f"please check for updates on GitHub")
-            raise NotImplementedError("XML not yet supported")
+                self.logger.debug(f"The endpoint: {self.url} does not exist in the current Valet series list")
+            raise SeriesException("The series passed does not lead to a Valet endpoint, "
+                                  "check your spelling and try again.")
+
 
 
     def get_series_detail(self, series, response_format='csv'):
@@ -293,23 +289,18 @@ class ValetInterpreter(BaseInterpreter):
             'csv': (pd.DataFrame) with columns: name, label, description
             'json': (dict)
         """
-        if response_format == 'csv':
-            if self.series_list[response_format] is None:
+        if self.series_list[response_format] is None:
+            if self.check:
                 self.list_series(response_format=response_format)
-                #self._reset_url()
 
+        if response_format == 'csv':
             df = self._get_series_detail(series, response_format=response_format)
-            #self._reset_url()
             return df
 
         elif response_format == 'json':
-            if self.series_list[response_format] is None:
-                self.list_series(response_format=response_format)
-                #self._reset_url()
-
             js = self._get_series_detail(series, response_format=response_format)
-            #self._reset_url()
             return js
+
         else:
             if self.logger is not None:
                 self.logger.debug(f"{response_format} is not yet supported, "
@@ -331,11 +322,13 @@ class ValetInterpreter(BaseInterpreter):
 
 
         '''
-        groups_list = []
-        if response_format == 'csv':
-            groups_list = self.groups_list[response_format]['name'].unique()
-        elif response_format == 'json':
-            groups_list = self.groups_list[response_format]['groups'].keys()
+        groups_list = [group]
+        if self.check:
+            if response_format == 'csv':
+                groups_list = self.groups_list[response_format]['name'].unique()
+            elif response_format == 'json':
+                groups_list = self.groups_list[response_format]['groups'].keys()
+
         if group in groups_list:
             if response_format == 'csv':
                 response = self._get_details('groups', group, response_format=response_format)
@@ -354,13 +347,6 @@ class ValetInterpreter(BaseInterpreter):
                 if self.logger is not None:
                     self.logger.debug(f"The {group} group has {len(js_series)} series contained within it.")
                 return js_group, js_series
-
-            else:
-                if self.logger is not None:
-                    self.logger.debug(f"{response_format} is not yet supported, "
-                                      f"please check for updates on GitHub")
-                raise NotImplementedError("XML not yet supported")
-
 
         else:
             if self.logger is not None:
@@ -384,22 +370,14 @@ class ValetInterpreter(BaseInterpreter):
 
         """
         if response_format == 'csv':
-            if self.groups_list[response_format] is None:
+            if self.check and self.groups_list[response_format] is None:
                 self.list_groups(response_format=response_format)
-                #self._reset_url()
-
             df_group, df_series = self._get_group_detail(group, response_format=response_format)
-            #self._reset_url()
             return df_group, df_series
         elif response_format == 'json':
-            if self.groups_list[response_format] is None:
-                self.list_groups(response_format=response_format)
-                #self._reset_url()
-
+            if self.check and self.groups_list[response_format] is None:
+                self.list_groups(response_format=response_format)                #self._reset_url()
             js_group, js_series = self._get_group_detail(group, response_format=response_format)
-            #self._reset_url()
-            #print("js_group: ",js_group)
-            #print("js_series: ", js_series)
             return js_group, js_series
 
         else:
@@ -409,13 +387,17 @@ class ValetInterpreter(BaseInterpreter):
             raise NotImplementedError("JSON and XML not yet supported")
 
     def _get_series_observations(self, series, response_format='csv', **kwargs):
-        all_series=[]
-        if response_format == 'csv':
-            all_series = list(self.series_list[response_format]['name'].unique())
-        elif response_format == 'json':
-            all_series = list(self.series_list[response_format]['series'].keys())
 
-        # Make sure that the series exists before bothering to send request.
+        all_series=[]
+        all_series.extend(series)
+        if self.check:
+            # Make sure that the series exists before bothering to send request.
+            if response_format == 'csv':
+                all_series = list(self.series_list[response_format]['name'].unique())
+            elif response_format == 'json':
+                all_series = list(self.series_list[response_format]['series'].keys())
+
+
         if (series in all_series) or isinstance(series, list):
             if isinstance(series, list):  # For passed list of strings.
                 if all([s in all_series for s in series]):
@@ -512,12 +494,15 @@ class ValetInterpreter(BaseInterpreter):
         return "".join(split2[0].split("\n\n")[:-1]), split2[1]
 
     def _get_group_observations(self, group: str, response_format: str='csv', **kwargs):
-        # Make sure that the series exists before bothering to send request.
-        group_list=[]
-        if response_format == 'csv':
-            group_list=self.groups_list[response_format]['name'].unique()
-        if response_format == 'json':
-            group_list=self.groups_list[response_format]['groups'].keys()
+
+        group_list=[group]
+        if self.check:
+            # Make sure that the series exists before bothering to send request.
+            if response_format == 'csv':
+                group_list=self.groups_list[response_format]['name'].unique()
+            if response_format == 'json':
+                group_list=self.groups_list[response_format]['groups'].keys()
+
 
         if group in group_list:
             response = self._get_observations(f"group/{group}", response_format=response_format, **kwargs)
@@ -570,7 +555,7 @@ class ValetInterpreter(BaseInterpreter):
             'json': (dict, list)
         """
         if response_format == 'csv':
-            if self.groups_list[response_format] is None:
+            if self.check and self.groups_list[response_format] is None:
                 self.list_groups(response_format='csv')
                 #self._reset_url()
 
@@ -578,12 +563,10 @@ class ValetInterpreter(BaseInterpreter):
             #self._reset_url()
             return df_series, df
         elif response_format == 'json':
-            if self.groups_list[response_format] is None:
+            if self.check and self.groups_list[response_format] is None:
                 self.list_groups(response_format='json')
-                #self._reset_url()
-
             js_series, js = self._get_group_observations(group, response_format=response_format, **kwargs)
-            #self._reset_url()
+
             return js_series, js
 
         else:
@@ -615,7 +598,7 @@ class ValetInterpreter(BaseInterpreter):
         Returns:
             (str) String containing xml documents text for the RSS feed.
         """
-        # Make sure that the series exists before bothering to send request.
+
         response_format='csv'
         if self.series_list[response_format] is None:
             self.list_series(response_format='csv')

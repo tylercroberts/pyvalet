@@ -1,7 +1,7 @@
 import time
 import pytest
 import pandas as pd
-from pyvalet import ValetInterpreter, SeriesException, GroupException
+from pyvalet import ValetInterpreter, SeriesException, GroupException, BOCException
 from loguru import logger
 logger.add('logs/test_logs.log')
 
@@ -212,6 +212,15 @@ def test_et():
     assert isinstance(js_series, list)
     logger.info(f"Prime rate is now {js_series[0]}")
 
+    vi = ValetInterpreter(logger=logger,check=False)
+    with pytest.raises(BOCException):
+        # One incorrect
+        df_series= vi.get_series_observations(['FXUSDCAD', 'INCORRECT'],
+                                                   response_format='csv', end_date='2018-12-01')
+    with pytest.raises(BOCException):
+        # One incorrect
+        js_series = vi.get_series_observations(['FXUSDCAD', 'INCORRECT'],
+                                                   response_format='json', end_date='2018-12-01')
 
 
 def test_fx_rss():
