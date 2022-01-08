@@ -108,17 +108,15 @@ class ValetInterpreter(BaseInterpreter):
         # need to be in correct format
         self.series_list = {}
         self.groups_list = {}
-        self.series_list['csv']=None
-        self.series_list['json']=None
-        self.series_list['xml']=None
-        self.groups_list['csv']=None
-        self.groups_list['json']=None
-        self.groups_list['xml']=None
-
+        self.series_list['csv'] = None
+        self.series_list['json'] = None
+        self.series_list['xml'] = None
+        self.groups_list['csv'] = None
+        self.groups_list['json'] = None
+        self.groups_list['xml'] = None
 
     def list_series(self, response_format='csv'):
         """
-
         Provides a list of all valid series endpoints.
 
         Args:
@@ -388,7 +386,7 @@ class ValetInterpreter(BaseInterpreter):
 
     def _get_series_observations(self, series, response_format='csv', **kwargs):
 
-        all_series=[]
+        all_series = []
         all_series.extend(series)
         if self.check:
             # Make sure that the series exists before bothering to send request.
@@ -396,7 +394,6 @@ class ValetInterpreter(BaseInterpreter):
                 all_series = list(self.series_list[response_format]['name'].unique())
             elif response_format == 'json':
                 all_series = list(self.series_list[response_format]['series'].keys())
-
 
         if (series in all_series) or isinstance(series, list):
             if isinstance(series, list):  # For passed list of strings.
@@ -411,29 +408,27 @@ class ValetInterpreter(BaseInterpreter):
             else:
                 n_series = 1
             # For passed single string.
-            if response_format=='csv':
+            if response_format == 'csv':
                 response = self._get_observations(series, response_format=response_format, **kwargs)
                 df = self._pandafy_response(response.text, skiprows=4)  # TODO: This will not work with comma sep series.
                 df_series = df.iloc[0:n_series]
-                df = df.iloc[1+n_series:]
-                headers = df.iloc[0]
-                df = pd.DataFrame(df.values[1:], columns=headers)
+                df_obs = df.iloc[1+n_series:]
+                headers = df_obs.iloc[0]
+                df_obs = pd.DataFrame(df_obs.values[1:], columns=headers)
+                df_obs.dropna()
                 if self.logger is not None:
-                    self.logger.debug(f"The {series} series has {df.shape[0]} observations")
+                    self.logger.debug(f"The {series} series has {df_obs.shape[0]} observations")
 
-                #print("df_series: ",df_series)
-                #print("df: ",df)
+                return df_series, df_obs
 
-                return df_series, df
-
-            elif response_format=='json':
+            elif response_format == 'json':
                 response = self._get_observations(series, response_format=response_format, **kwargs)
-                js=response.json(strict=False)
-                js_series = js["observations"]
+                js = response.json(strict=False)
+                js_obs = js["observations"]
                 if self.logger is not None:
-                    self.logger.debug(f"The {series} series has {len(js_series)} observations")
+                    self.logger.debug(f"The {series} series has {len(js_obs)} observations")
 
-                return js_series, series
+                return series, js_obs
 
         else:
 
@@ -441,7 +436,6 @@ class ValetInterpreter(BaseInterpreter):
                 self.logger.debug(f"The endpoint: {self.url} does not exist in the current Valet series list")
             raise SeriesException("The series passed does not lead to a Valet endpoint, "
                                   "check your spelling and try again.")
-
 
     def get_series_observations(self, series, response_format='csv', **kwargs):
         """
@@ -462,21 +456,15 @@ class ValetInterpreter(BaseInterpreter):
         if response_format == 'csv':
             if self.series_list[response_format] is None:
                 self.list_series(response_format=response_format)
-                #self._reset_url()
 
-            df, _ = self._get_series_observations(series, response_format=response_format, **kwargs)
-            #self._reset_url()
-            #print("df: ",df)
-            return df #only getting observations and returning observations df_series
+            _, df_obs = self._get_series_observations(series, response_format=response_format, **kwargs)
+            return df_obs
         elif response_format == 'json':
             if self.series_list[response_format] is None:
                 self.list_series(response_format=response_format)
-                #self._reset_url()
 
-            js, _ = self._get_series_observations(series, response_format=response_format, **kwargs)
-            #self._reset_url()
-            #print("js: ",js)
-            return js
+            _, js_obs = self._get_series_observations(series, response_format=response_format, **kwargs)
+            return js_obs
 
         else:
             if self.logger is not None:
@@ -512,8 +500,7 @@ class ValetInterpreter(BaseInterpreter):
                 df = self._pandafy_response(obs_str, skiprows=0)
                 if self.logger is not None:
                     self.logger.debug(f"The {group} group has {df.shape[0]} observations")
-                #print("group df_series: ", df_series )
-                #print("group dfs: ", df )
+
                 return df_series, df
             elif response_format == 'json':
                 js=response.json(strict=False)
@@ -521,8 +508,6 @@ class ValetInterpreter(BaseInterpreter):
                 js = js["observations"]
                 if self.logger is not None:
                     self.logger.debug(f"The {group} group has {len(js_series)} observations")
-                #print("group js_series: ", js_series )
-                #print("group js: ", js )
 
                 return js_series, js
 
@@ -537,8 +522,6 @@ class ValetInterpreter(BaseInterpreter):
                 self.logger.debug(f"The endpoint: {self.url} does not exist in the current Valet series list")
             raise GroupException("The series passed does not lead to a Valet endpoint, "
                                  "check your spelling and try again.")
-
-
 
     def get_group_observations(self, group: str, response_format: str = 'csv', **kwargs):
         """
@@ -557,16 +540,15 @@ class ValetInterpreter(BaseInterpreter):
         if response_format == 'csv':
             if self.check and self.groups_list[response_format] is None:
                 self.list_groups(response_format='csv')
-                #self._reset_url()
 
             df_series, df = self._get_group_observations(group, response_format=response_format, **kwargs)
-            #self._reset_url()
             return df_series, df
+
         elif response_format == 'json':
             if self.check and self.groups_list[response_format] is None:
                 self.list_groups(response_format='json')
-            js_series, js = self._get_group_observations(group, response_format=response_format, **kwargs)
 
+            js_series, js = self._get_group_observations(group, response_format=response_format, **kwargs)
             return js_series, js
 
         else:
@@ -574,9 +556,6 @@ class ValetInterpreter(BaseInterpreter):
                 self.logger.debug(f"{response_format} is not yet supported, "
                                   f"please check for updates on GitHub")
             raise NotImplementedError("XML not yet supported")
-
-
-
 
     def _get_fx_rss(self, endpoint):
 
@@ -602,7 +581,6 @@ class ValetInterpreter(BaseInterpreter):
         response_format='csv'
         if self.series_list[response_format] is None:
             self.list_series(response_format='csv')
-            #self._reset_url()
 
         all_series = list(self.series_list[response_format]['name'].unique())
 
@@ -621,7 +599,6 @@ class ValetInterpreter(BaseInterpreter):
             else:
                 n_series = 1
             response = self._get_fx_rss(series)
-            #self._reset_url()
             return response.text
 
         else:
