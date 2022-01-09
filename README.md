@@ -96,6 +96,8 @@ is two `pandas` DataFrames,
 The first contains the details for either the series or group queried, 
 and the second contains the observations themselves.
 
+Alternatively, for any of the series or group methods, you can pass `response_format='json'` to recieve dictionaries instead of DataFrames.
+
 
 ### RSS Feed for FX Rates:
 `pyvalet` also offers an interface for pulling RSS feeds from the Valet API.
@@ -119,3 +121,5 @@ Please be sure to write tests to cover any new code.
 The documentation can be built from within the `docs` directory. 
 It will use any `.rst` files found within the `source` subfolder to generate doc pages. 
 If any new pages are added, you will need to also update `index.rst` so they will show up in the generated HTML.
+
+Please see [CONTRIBUTING](CONTRIBUTING.md) and [CODE_OF_CONDUCT](CODE_OF_CONDUCT.md) for more details.
