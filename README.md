@@ -58,9 +58,9 @@ so there is no need to assign the output, unless you plan to filter these lists.
 
 They can be accessed through:
 ```python
-vi.series_list
+vi.series_dict
 
-vi.groups_list
+vi.groups_dict
 ```
 
 ### Series and Group Details:
