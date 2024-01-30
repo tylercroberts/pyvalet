@@ -10,7 +10,7 @@ from io import StringIO
 from pathlib import Path
 from typing import Tuple, Any, Dict, List
 from requests.exceptions import Timeout, HTTPError
-
+import re
 from .exceptions import *
 
 
@@ -33,37 +33,35 @@ class BaseInterpreter(object):
     def _enable_logging(self, logger):
         self.logger = logger
 
-    def _reset_url(self):
-        self.url = self.base_url
+    def update_url(self, addition: str, base_url=None):
+        if base_url is None:
+            return f"{self.base_url}/{addition}"
+        else:
+            return f"{base_url}/{addition}"
 
-    def _set_endpoint(self, endpoint: str):
-        self.url = f"{self.url}/{endpoint}"
 
-    def _set_query(self, query: str):
-        self.url = f"{self.url}?{query}"
-
-    def _prepare_requests(self, *args, **kwargs):
+    def _prepare_request(self, *args, **kwargs):
         """All args are taken to be part of the endpoint, and all kwargs are taken to be the query."""
+        request_url = self.base_url
         for arg in args:
             if isinstance(arg, str):
-                self._set_endpoint(arg)
+                request_url = self.update_url(arg, base_url=request_url)
             else:
-                self._reset_url()
                 raise ValueError('Arguments to prepare_requests must be a string')
 
         query_str = ""
         for k, v in kwargs.items():
             query_str += f"{k}={v}&"
-        self._set_query(query_str)
+        request_url += f"?{query_str}"
 
         if self.logger is not None:
             self.logger.debug(f"Finished preparing request to: {self.url}")
+        return request_url
 
     def requests_get(self, url):
         try:
             response = requests.get(url,timeout=self.timeout)
             response.raise_for_status()
-            self._reset_url()
             return response
 
         except Exception as e:
@@ -79,17 +77,23 @@ class BaseInterpreter(object):
                     response = self.requests_get(url)
                     return response
                 elif self.logger is not None:
-                    self.logger.error(f'Timeout error occurred: {e}')
-                    self.logger.error('The request timed out with timeout: {self.timeout}')
+                    self.logger.error(f'Timeout error occurred: {e}.\nThe request timed out with timeout: {self.timeout}')
             elif self.logger is not None:
                 self.logger.error(f'Other error occurred: {e}')
 
-        raise BOCException('BOC Exception')
+            raise BOCException(f'BOC Exception - {e}')
 
     @staticmethod
     def _pandafy_response(response: str, skiprows: int = 0,) -> pd.DataFrame:
+        """TODO: This maybe shouldn't be static and should try to figure out types based on the `details_df`"""
         sio = StringIO(response)
         df = pd.read_csv(sio, skiprows=skiprows)
+        df = df.dropna(axis=1, how='all')  # Drop any cols where all value are na
+        for column in df.columns:
+            # Specifically for FRX, will parse into float
+            if re.match("FX[A-Z]{3}[A-Z]{3}", str(column)) is not None:
+                df.loc[:, column] = df.loc[:, column].astype(float)
+
         return df
 
 
@@ -100,7 +104,6 @@ class ValetInterpreter(BaseInterpreter):
         super(ValetInterpreter, self).__init__(logger=logger, timeout=timeout )
 
         self.base_url = 'https://www.bankofcanada.ca/valet'
-        self.url = self.base_url
         self.timeout = timeout
         self.check = check
 
@@ -195,8 +198,8 @@ class ValetInterpreter(BaseInterpreter):
     def _get_lists(self, endpoint: str, response_format='csv'):
 
         # /lists/listName/json
-        self._prepare_requests('lists', endpoint, response_format)
-        response = self.requests_get(self.url)
+        request_url = self._prepare_request('lists', endpoint, response_format)
+        response = self.requests_get(request_url)
 
         if self.logger is not None:
             self.logger.debug(f"Query for {endpoint} lists returned code {response.status_code}")
@@ -228,15 +231,16 @@ class ValetInterpreter(BaseInterpreter):
                         label: The title of the series
                         link: The link to the series details
         """
-        self._prepare_requests(detail_type, endpoint, response_format)
-        response = self.requests_get(self.url)
+        request_url = self._prepare_request(detail_type, endpoint, response_format)
+        response = self.requests_get(request_url)
+
 
         if self.logger is not None:
             self.logger.debug(f"Query for {detail_type}/{endpoint} details returned code {response.status_code}")
 
         return response
 
-    def _get_observations(self, endpoint: str, response_format='csv', **kwargs):
+    def _get_observations(self, endpoint: str, response_format, **kwargs):
         """
          Makes request to: /observations/seriesNames/format?query or /observations/group/groupName/format?query
 
@@ -251,8 +255,8 @@ class ValetInterpreter(BaseInterpreter):
         """
 
         # response_format must be positional because of how _prepare_requests works.
-        self._prepare_requests('observations', endpoint, response_format, **kwargs)
-        response = self.requests_get(self.url)
+        request_url = self._prepare_request('observations', endpoint, response_format, **kwargs)
+        response = self.requests_get(request_url)
 
         if self.logger is not None:
             self.logger.debug(f"Query for {endpoint} observations returned code {response.status_code}")
@@ -393,7 +397,7 @@ class ValetInterpreter(BaseInterpreter):
                                   f"please check for updates on GitHub")
             raise NotImplementedError("JSON and XML not yet supported")
 
-    def _get_series_observations(self, series, response_format='csv', **kwargs):
+    def _get_series_observations(self, series, response_format, **kwargs):
 
         all_series = []
         all_series.extend(series)
@@ -418,7 +422,7 @@ class ValetInterpreter(BaseInterpreter):
                 n_series = 1
             # For passed single string.
             if response_format == 'csv':
-                response = self._get_observations(series, response_format=response_format, **kwargs)
+                response = self._get_observations(series, response_format, **kwargs)
                 df = self._pandafy_response(response.text, skiprows=4)  # TODO: Will not work with comma sep series.
                 df_series = df.iloc[0:n_series]
                 df_obs = df.iloc[1+n_series:]
@@ -431,7 +435,7 @@ class ValetInterpreter(BaseInterpreter):
                 return df_series, df_obs
 
             elif response_format == 'json':
-                response = self._get_observations(series, response_format=response_format, **kwargs)
+                response = self._get_observations(series, response_format, **kwargs)
                 js = response.json(strict=False)
                 js_obs = js["observations"]
                 if self.logger is not None:
@@ -446,7 +450,7 @@ class ValetInterpreter(BaseInterpreter):
             raise SeriesException("The series passed does not lead to a Valet endpoint, "
                                   "check your spelling and try again.")
 
-    def get_series_observations(self, series, response_format='csv', **kwargs):
+    def get_series_observations(self, series, response_format, **kwargs):
         """
         Interface to pull observations for a given series.
         Performs another query to ensure the series exists on Valet
@@ -466,13 +470,13 @@ class ValetInterpreter(BaseInterpreter):
             if self.series_dict[response_format] is None:
                 self.list_series(response_format=response_format)
 
-            _, df_obs = self._get_series_observations(series, response_format=response_format, **kwargs)
+            _, df_obs = self._get_series_observations(series, response_format, **kwargs)
             return df_obs
         elif response_format == 'json':
             if self.series_dict[response_format] is None:
                 self.list_series(response_format=response_format)
 
-            _, js_obs = self._get_series_observations(series, response_format=response_format, **kwargs)
+            _, js_obs = self._get_series_observations(series, response_format, **kwargs)
             return js_obs
 
         else:
@@ -483,16 +487,19 @@ class ValetInterpreter(BaseInterpreter):
 
     @staticmethod
     def _parse_group_observations(response: requests.Response) -> (str, str):
-        split1 = response.text.split('\n"SERIES"')
+
+        split1 = response.text.replace("\ufeff", "").split('\n"SERIES"')
         of_interest = split1[1]
         split2 = of_interest.split("OBSERVATIONS")
         # Remove the unnecessary line at the end of the first split, return both csv strings.
-        return "".join(split2[0].split("\n\n")[:-1]), split2[1]
+        return ",".join(split2[0].split("\r\n")[:-1]), split2[1]
 
-    def _get_group_observations(self, group: str, response_format: str = 'csv', **kwargs):
+    def _get_group_observations(self, group: str, response_format: str, **kwargs):
 
         group_list=[group]
         if self.check:
+            if self.groups_dict.get(response_format, None) is None:
+                self.list_groups(response_format)
             # Make sure that the series exists before bothering to send request.
             if response_format == 'csv':
                 group_list = self.groups_dict[response_format]['name'].unique()
@@ -500,7 +507,7 @@ class ValetInterpreter(BaseInterpreter):
                 group_list = self.groups_dict[response_format]['groups'].keys()
 
         if group in group_list:
-            response = self._get_observations(f"group/{group}", response_format=response_format, **kwargs)
+            response = self._get_observations(f"group/{group}", response_format, **kwargs)
             if response_format == 'csv':
                 series_str, obs_str = self._parse_group_observations(response)
                 df_series = self._pandafy_response(series_str, skiprows=0)
@@ -526,10 +533,10 @@ class ValetInterpreter(BaseInterpreter):
         else:
             if self.logger is not None:
                 self.logger.debug(f"The endpoint: {self.url} does not exist in the current Valet series list")
-            raise GroupException("The series passed does not lead to a Valet endpoint, "
+            raise GroupException(f"The group passed ({group}) does not lead to a Valet endpoint, "
                                  "check your spelling and try again.")
 
-    def get_group_observations(self, group: str, response_format: str = 'csv', **kwargs):
+    def get_group_observations(self, group: str, response_format: str, **kwargs):
         """
         Interface to pull observations for all series in a group.
         Performs another query to ensure the group exists as an endpoint on Valet
@@ -547,14 +554,14 @@ class ValetInterpreter(BaseInterpreter):
             if self.check and self.groups_dict[response_format] is None:
                 self.list_groups(response_format='csv')
 
-            df_series, df = self._get_group_observations(group, response_format=response_format, **kwargs)
+            df_series, df = self._get_group_observations(group, response_format, **kwargs)
             return df_series, df
 
         elif response_format == 'json':
             if self.check and self.groups_dict[response_format] is None:
                 self.list_groups(response_format='json')
 
-            js_series, js = self._get_group_observations(group, response_format=response_format, **kwargs)
+            js_series, js = self._get_group_observations(group, response_format, **kwargs)
             return js_series, js
 
         else:
@@ -565,8 +572,8 @@ class ValetInterpreter(BaseInterpreter):
 
     def _get_fx_rss(self, endpoint):
         # response_format must be positional because of how _prepare_requests works.
-        self._prepare_requests('fx_rss', endpoint)
-        response = self.requests_get(self.url)
+        request_url = self._prepare_request('fx_rss', endpoint)
+        response = self.requests_get(request_url)
         if self.logger is not None:
             self.logger.debug(f"Query for {endpoint} observations returned code {response.status_code}")
         return response

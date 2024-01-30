@@ -17,29 +17,26 @@ def test_endpoints():
     # Test that the list endpoints are still valid. This may make debugging easier if they change, or become outdated.
     response = vi._get_lists('series', response_format='csv')
     assert response.status_code == 200
-    vi._reset_url()
     response = vi._get_lists('groups', response_format='csv')
     assert response.status_code == 200
-    vi._reset_url()
     logger.info("Confirmed that endpoints are still valid for series list and groups list.")
     # Test that the list endpoints are still valid. This may make debugging easier if they change, or become outdated.
     response = vi._get_lists('series', response_format='json')
     assert response.status_code == 200
-    vi._reset_url()
     response = vi._get_lists('groups', response_format='json')
     assert response.status_code == 200
-    vi._reset_url()
     logger.info("Confirmed that endpoints are still valid for series list and groups list.")
 
 
     with pytest.raises(ValueError):
-        vi._prepare_requests('a', 2, 'c')
+        vi._prepare_request('a', 2, 'c')
     with pytest.raises(ValueError):
-        vi._prepare_requests('a', ['hi'], 'c')
+        vi._prepare_request('a', ['hi'], 'c')
     with pytest.raises(ValueError):
         vi._prepare_requests('a', {'a':1}, 'c')
+        vi._prepare_request('a', {'a': 1}, 'c')
     with pytest.raises(ValueError):
-        vi._prepare_requests('a', (1,2), 'c')
+        vi._prepare_request('a', (1, 2), 'c')
 
     logger.info("Confirmed that only strings will work for _prepare_requests()")
     logger.info("Completed tests for endpoints")
