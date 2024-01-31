@@ -12,11 +12,15 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.6"
 dependencies = [
     "pandas",
     "requests",
-    "loguru"
+    "loguru",
+    "pytest==5.2.1",
+  "pytest-cov==2.8.1",
+  "coverage-badge",
+  "coveralls"
 ]
 
 [build-system]
