@@ -15,6 +15,7 @@ classifiers = [
 requires-python = ">=3.6"
 dependencies = [
     "pandas",
+    "urllib3==1.26.6",
     "requests",
     "loguru",
     "pytest==5.2.1",
