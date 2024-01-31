@@ -1,6 +1,6 @@
 [project]
 name = "pyvalet"
-version = "1.1"
+version = "1.1.1"
 description = "BoC Valet API Wrapper"
 authors = [
   { name = "Tyler Roberts", email = "tylerroberts.sgc@gmail.com" },
