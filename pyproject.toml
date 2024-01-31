@@ -1,0 +1,29 @@
+[project]
+name = "pyvalet"
+version = "1.1.1"
+description = "BoC Valet API Wrapper"
+authors = [
+  { name = "Tyler Roberts", email = "tylerroberts.sgc@gmail.com" },
+]
+license = { file = "LICENSE" }
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+requires-python = ">=3.6"
+dependencies = [
+    "pandas",
+    "urllib3==1.26.6",
+    "requests",
+    "loguru",
+    "pytest==5.2.1",
+  "pytest-cov==2.8.1",
+  "coverage-badge",
+  "coveralls"
+]
+
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"

@@ -395,7 +395,7 @@ class ValetInterpreter(BaseInterpreter):
             if self.logger is not None:
                 self.logger.debug(f"{response_format} is not yet supported, "
                                   f"please check for updates on GitHub")
-            raise NotImplementedError("JSON and XML not yet supported")
+            raise NotImplementedError("XML not yet supported")
 
     def _get_series_observations(self, series, response_format, **kwargs):
 

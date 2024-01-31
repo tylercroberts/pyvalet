@@ -10,7 +10,7 @@ timeout = 10
 def test_interpreter():
     vi = ValetInterpreter()
     vi._enable_logging(logger=logger)
-
+    assert vi.update_url("test") == "https://www.bankofcanada.ca/valet/test"
 
 def test_endpoints():
     vi = ValetInterpreter(logger=logger,timeout=timeout)
@@ -33,7 +33,7 @@ def test_endpoints():
     with pytest.raises(ValueError):
         vi._prepare_request('a', ['hi'], 'c')
     with pytest.raises(ValueError):
-        vi._prepare_requests('a', {'a':1}, 'c')
+        vi._prepare_request('a', {'a':1}, 'c')
         vi._prepare_request('a', {'a': 1}, 'c')
     with pytest.raises(ValueError):
         vi._prepare_request('a', (1, 2), 'c')
@@ -112,6 +112,14 @@ def test_details():
         df = vi.get_group_detail("NOTCORRECT", response_format='json')
 
     logger.info("Checked that the correct exceptions are raised when a series or group is not recognized.")
+
+    with pytest.raises(KeyError):
+        # Test with a non-correct series or group name:
+        df = vi.get_series_detail("FXUSDCAD", response_format='WRONG')
+    with pytest.raises(NotImplementedError):
+        df = vi.get_group_detail("FX_RATES_DAILY", response_format='WRONG')
+
+    logger.info("Checked that the correct exceptions are raised when a series or group is not recognized.")
     logger.info("Completed tests for details")
 
 
@@ -173,6 +181,13 @@ def test_observations():
     js_series, js = vi.get_group_observations("FX_RATES_DAILY", response_format='json')
 
     logger.info("Passed run of observations without kwargs")
+
+    # Test with invalid repsonse format
+    with pytest.raises(NotImplementedError):
+        # Test with a non-correct series or group name:
+        df = vi.get_series_observations("FXUSDCAD", response_format='WRONG')
+    with pytest.raises(NotImplementedError):
+        df = vi.get_group_observations("FX_RATES_DAILY", response_format='WRONG')
 
     # Test multiple series:
     df_series= vi.get_series_observations(['FXUSDCAD', 'A.AGRI'],
